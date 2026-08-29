@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
-    function role(roleName) { return signedIn() && userDoc().data.role == roleName; }
+    function role(name) { return signedIn() && userDoc().data.role == name && userDoc().data.active == true; }
     function admin() { return role('admin'); }
 
     match /users/{uid} {
@@ -14,24 +14,18 @@ service cloud.firestore {
     match /tickets/{ticketId} {
       allow read: if signedIn();
       allow create: if role('crm') || admin();
-      allow update: if signedIn();
+      allow update: if admin()
+        || (role('crm') && resource.data.currentStatus == 'pending_warehouse' && request.resource.data.currentStatus == 'pending_warehouse')
+        || (role('warehouse') && resource.data.currentStatus == 'pending_warehouse' && (request.resource.data.currentStatus == 'ready_for_pdi' || request.resource.data.currentStatus == 'ready_for_dispatch'))
+        || (role('warehouse') && resource.data.currentStatus == 'ready_for_dispatch' && request.resource.data.currentStatus == 'logistics_pending')
+        || (role('pdi') && resource.data.currentStatus == 'ready_for_pdi' && request.resource.data.currentStatus == 'ready_for_dispatch')
+        || (role('logistics') && resource.data.currentStatus == 'logistics_pending' && request.resource.data.currentStatus == 'in_transit')
+        || (role('logistics') && resource.data.currentStatus == 'in_transit' && request.resource.data.currentStatus == 'closed');
       allow delete: if admin();
     }
 
-    match /workflowRules/{ruleId} {
-      allow read: if signedIn();
-      allow write: if admin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if signedIn();
-      allow write: if admin();
-    }
-
-    match /systemLogs/{logId} {
-      allow create: if signedIn();
-      allow read: if admin();
-      allow update, delete: if false;
-    }
+    match /workflowRules/{ruleId} { allow read: if signedIn(); allow write: if admin(); }
+    match /settings/{settingId} { allow read: if signedIn(); allow write: if admin(); }
+    match /systemLogs/{logId} { allow create: if signedIn(); allow read: if admin(); allow update, delete: if false; }
   }
 }
