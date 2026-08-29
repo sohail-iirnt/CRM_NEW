@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function role(roleName) { return signedIn() && userDoc().data.role == roleName; }
+    function admin() { return role('admin'); }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || admin());
+      allow create, update, delete: if admin();
+    }
+
+    match /tickets/{ticketId} {
+      allow read: if signedIn();
+      allow create: if role('crm') || admin();
+      allow update: if signedIn();
+      allow delete: if admin();
+    }
+
+    match /workflowRules/{ruleId} {
+      allow read: if signedIn();
+      allow write: if admin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn();
+      allow write: if admin();
+    }
+
+    match /systemLogs/{logId} {
+      allow create: if signedIn();
+      allow read: if admin();
+      allow update, delete: if false;
+    }
+  }
+}
