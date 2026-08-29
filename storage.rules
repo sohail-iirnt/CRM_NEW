@@ -1,0 +1,11 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function isRole(name) { return signedIn() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == name; }
+    match /pdi/{ticketId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if isRole('pdi') || isRole('admin');
+    }
+  }
+}

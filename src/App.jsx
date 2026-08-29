@@ -1,51 +1,326 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { MODULES, ROLES } from './config.js'
+import { useAuth } from './auth.jsx'
+import Login from './pages/Login.jsx'
+import CRM from './pages/CRM.jsx'
+import { Warehouse, PDI, Logistics } from './pages/Operations.jsx'
+import Admin from './pages/Admin.jsx'
 
 const modules = [
-  [MODULES.CRM, 'CRM', 'Add / Upload Tickets', ROLES.CRM],
-  [MODULES.WAREHOUSE, 'Warehousing', 'Movement & Dispatch', ROLES.WAREHOUSE],
-  [MODULES.PDI, 'PDI Inspection', 'Inspection Queue', ROLES.PDI],
-  [MODULES.LOGISTICS, 'Logistics', 'ETA & Closure', ROLES.LOGISTICS],
-  [MODULES.ADMIN, 'Admin Control Center', 'System Administration', ROLES.ADMIN],
+  [
+    MODULES.CRM,
+    'CRM',
+    'Add / Upload Tickets',
+    ROLES.CRM
+  ],
+  [
+    MODULES.WAREHOUSE,
+    'Warehousing',
+    'Movement & Dispatch',
+    ROLES.WAREHOUSE
+  ],
+  [
+    MODULES.PDI,
+    'PDI Inspection',
+    'Inspection Queue',
+    ROLES.PDI
+  ],
+  [
+    MODULES.LOGISTICS,
+    'Logistics',
+    'ETA & Closure',
+    ROLES.LOGISTICS
+  ],
+  [
+    MODULES.ADMIN,
+    'Admin Control Center',
+    'System Administration',
+    ROLES.ADMIN
+  ]
 ]
 
-function DemoPage({ title, description }) {
-  return <section className="page"><div className="eyebrow">CRM SAIDHARA 2.0</div><h1>{title}</h1><p className="muted">{description}</p><div className="notice">Module foundation is ready. Firebase authentication and the operational workflow screens will be connected in the next implementation stage.</div></section>
+function Protected({ requiredRole, children }) {
+  const { user, profile, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        Loading CRM SAIDHARA…
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  /*
+   * Authentication succeeded but the Firestore user profile
+   * has not been loaded/created yet.
+   *
+   * This is intentionally different from an inactive/blocked
+   * account so the Firebase setup problem is easier to diagnose.
+   */
+  if (!profile) {
+    return (
+      <div className="loading-screen">
+        <div className="error-box">
+          <strong>Account profile not found.</strong>
+          <span>
+            Your Firebase login succeeded, but no active user profile
+            was found for this account. Please contact an administrator.
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (profile.blocked === true) {
+    return (
+      <div className="loading-screen">
+        <div className="error-box">
+          <strong>Your account is blocked.</strong>
+          <span>
+            Contact an administrator to restore access.
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (profile.active === false) {
+    return (
+      <div className="loading-screen">
+        <div className="error-box">
+          <strong>Your account is inactive.</strong>
+          <span>
+            Contact an administrator to activate your account.
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  /*
+   * Admin is the master role and can access every module.
+   * Other users can access only their assigned module.
+   */
+  if (
+    profile.role !== ROLES.ADMIN &&
+    profile.role !== requiredRole
+  ) {
+    return (
+      <Navigate
+        to={`/${profile.role || ROLES.CRM}`}
+        replace
+      />
+    )
+  }
+
+  return children
 }
 
-function App() {
-  // Temporary role for the architecture preview. Firebase Auth + Firestore user profile
-  // resolution will replace this before production access is enabled.
-  const role = ROLES.ADMIN
-  const canAccess = (required) => role === ROLES.ADMIN || role === required
+function Shell() {
+  const { profile, logout, hasRole } = useAuth()
+  const navigate = useNavigate()
+
+  const visibleModules = modules.filter(
+    ([, , , requiredRole]) => hasRole(requiredRole)
+  )
+
+  const isAdmin = profile?.role === ROLES.ADMIN
 
   return (
     <div className="app-shell">
+
       <aside className="sidebar">
-        <div className="brand"><span className="brand-mark">C</span><div><strong>CRM SAIDHARA</strong><small>Operations Platform</small></div></div>
+
+        <div className="brand">
+          <span className="brand-mark">C</span>
+
+          <div>
+            <strong>CRM SAIDHARA</strong>
+            <small>Operations Platform</small>
+          </div>
+        </div>
+
         <nav>
-          {modules.filter(([, , , required]) => canAccess(required)).map(([key, label, sub]) => (
-            <NavLink key={key} to={`/${key}`} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-              <span>{label}</span><small>{sub}</small>
+
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                isActive
+                  ? 'nav-item active'
+                  : 'nav-item'
+              }
+            >
+              <span>Admin Control Center</span>
+              <small>System Administration</small>
             </NavLink>
-          ))}
+          )}
+
+          {visibleModules
+            .filter(([key]) => key !== MODULES.ADMIN)
+            .map(([key, label, sub]) => (
+              <NavLink
+                key={key}
+                to={`/${key}`}
+                className={({ isActive }) =>
+                  isActive
+                    ? 'nav-item active'
+                    : 'nav-item'
+                }
+              >
+                <span>{label}</span>
+                <small>{sub}</small>
+              </NavLink>
+            ))}
         </nav>
-        <div className="role-card"><small>Current access</small><strong>ADMIN</strong><span>Full system access</span></div>
+
+        <div className="role-card">
+          <small>Signed in as</small>
+
+          <strong>
+            {profile?.role?.toUpperCase()}
+          </strong>
+
+          <span>
+            {profile?.name || profile?.email}
+          </span>
+
+          <button
+            className="ghost"
+            onClick={async () => {
+              await logout()
+              navigate('/login')
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+
       </aside>
+
       <main className="main">
-        <header className="topbar"><div><span className="status-dot" /> System Architecture Upgrade</div><span>Firebase-ready foundation</span></header>
+
+        <header className="topbar">
+
+          <div>
+            <span className="status-dot" />
+            Live Operations
+          </div>
+
+          <span>
+            {profile?.name || profile?.email}
+          </span>
+
+        </header>
+
         <Routes>
-          <Route path="/" element={<Navigate to="/admin" replace />} />
-          <Route path="/crm" element={<DemoPage title="CRM Portal" description="Inbound / Outbound ticket entry, bulk upload, and live master tracking." />} />
-          <Route path="/warehouse" element={<DemoPage title="Warehousing" description="Flow-aware movement and dispatch operations." />} />
-          <Route path="/pdi" element={<DemoPage title="PDI Inspection" description="Inspection queue, PDI results, evidence, and history." />} />
-          <Route path="/logistics" element={<DemoPage title="Logistics" description="ETA, In Transit tracking, branch reporting, and closure." />} />
-          <Route path="/admin" element={<DemoPage title="Admin Control Center" description="Users, access control, workflow rules, settings, exports, analytics, and live audit logs." />} />
-          <Route path="*" element={<Navigate to="/admin" replace />} />
+
+          {/* CRM */}
+          <Route
+            path="/crm"
+            element={
+              <Protected requiredRole={ROLES.CRM}>
+                <CRM />
+              </Protected>
+            }
+          />
+
+          {/* Warehouse */}
+          <Route
+            path="/warehouse"
+            element={
+              <Protected requiredRole={ROLES.WAREHOUSE}>
+                <Warehouse />
+              </Protected>
+            }
+          />
+
+          {/* PDI */}
+          <Route
+            path="/pdi"
+            element={
+              <Protected requiredRole={ROLES.PDI}>
+                <PDI />
+              </Protected>
+            }
+          />
+
+          {/* Logistics */}
+          <Route
+            path="/logistics"
+            element={
+              <Protected requiredRole={ROLES.LOGISTICS}>
+                <Logistics />
+              </Protected>
+            }
+          />
+
+          {/* Admin */}
+          <Route
+            path="/admin"
+            element={
+              <Protected requiredRole={ROLES.ADMIN}>
+                <Admin />
+              </Protected>
+            }
+          />
+
+          {/* Root */}
+          <Route
+            path="/"
+            element={
+              <Navigate
+                to={
+                  profile?.role === ROLES.ADMIN
+                    ? '/admin'
+                    : `/${profile?.role || ROLES.CRM}`
+                }
+                replace
+              />
+            }
+          />
+
+          {/* Unknown authenticated route */}
+          <Route
+            path="*"
+            element={<Navigate to="/" replace />}
+          />
+
         </Routes>
+
       </main>
+
     </div>
   )
 }
 
-export default App
+export default function App() {
+  const { user } = useAuth()
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route
+          path="/login"
+          element={<Login />}
+        />
+
+        <Route
+          path="*"
+          element={
+            <Navigate
+              to="/login"
+              replace
+            />
+          }
+        />
+      </Routes>
+    )
+  }
+
+  return <Shell />
+}
