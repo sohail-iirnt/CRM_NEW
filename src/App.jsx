@@ -1,5 +1,8 @@
-import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { MODULES, ROLES } from './config.js'
+import { useAuth } from './auth.jsx'
+import Login from './pages/Login.jsx'
+import CRM from './pages/CRM.jsx'
 
 const modules = [
   [MODULES.CRM, 'CRM', 'Add / Upload Tickets', ROLES.CRM],
@@ -9,43 +12,20 @@ const modules = [
   [MODULES.ADMIN, 'Admin Control Center', 'System Administration', ROLES.ADMIN],
 ]
 
-function DemoPage({ title, description }) {
-  return <section className="page"><div className="eyebrow">CRM SAIDHARA 2.0</div><h1>{title}</h1><p className="muted">{description}</p><div className="notice">Module foundation is ready. Firebase authentication and the operational workflow screens will be connected in the next implementation stage.</div></section>
+function Protected({ requiredRole, children }) {
+  const { user, profile, loading } = useAuth()
+  if (loading) return <div className="loading-screen">Loading CRM SAIDHARA…</div>
+  if (!user) return <Navigate to="/login" replace />
+  if (!profile?.active) return <div className="loading-screen"><div className="error-box">Your account is blocked or inactive. Contact an administrator.</div></div>
+  if (profile.role !== ROLES.ADMIN && profile.role !== requiredRole) return <Navigate to={`/${profile.role}`} replace />
+  return children
 }
 
-function App() {
-  // Temporary role for the architecture preview. Firebase Auth + Firestore user profile
-  // resolution will replace this before production access is enabled.
-  const role = ROLES.ADMIN
-  const canAccess = (required) => role === ROLES.ADMIN || role === required
-
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand"><span className="brand-mark">C</span><div><strong>CRM SAIDHARA</strong><small>Operations Platform</small></div></div>
-        <nav>
-          {modules.filter(([, , , required]) => canAccess(required)).map(([key, label, sub]) => (
-            <NavLink key={key} to={`/${key}`} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-              <span>{label}</span><small>{sub}</small>
-            </NavLink>
-          ))}
-        </nav>
-        <div className="role-card"><small>Current access</small><strong>ADMIN</strong><span>Full system access</span></div>
-      </aside>
-      <main className="main">
-        <header className="topbar"><div><span className="status-dot" /> System Architecture Upgrade</div><span>Firebase-ready foundation</span></header>
-        <Routes>
-          <Route path="/" element={<Navigate to="/admin" replace />} />
-          <Route path="/crm" element={<DemoPage title="CRM Portal" description="Inbound / Outbound ticket entry, bulk upload, and live master tracking." />} />
-          <Route path="/warehouse" element={<DemoPage title="Warehousing" description="Flow-aware movement and dispatch operations." />} />
-          <Route path="/pdi" element={<DemoPage title="PDI Inspection" description="Inspection queue, PDI results, evidence, and history." />} />
-          <Route path="/logistics" element={<DemoPage title="Logistics" description="ETA, In Transit tracking, branch reporting, and closure." />} />
-          <Route path="/admin" element={<DemoPage title="Admin Control Center" description="Users, access control, workflow rules, settings, exports, analytics, and live audit logs." />} />
-          <Route path="*" element={<Navigate to="/admin" replace />} />
-        </Routes>
-      </main>
-    </div>
-  )
+function Shell() {
+  const { profile, logout, hasRole } = useAuth(); const navigate = useNavigate()
+  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-mark">C</span><div><strong>CRM SAIDHARA</strong><small>Operations Platform</small></div></div><nav>{modules.filter(([, , , required])=>hasRole(required)).map(([key,label,sub])=><NavLink key={key} to={`/${key}`} className={({isActive})=>isActive?'nav-item active':'nav-item'}><span>{label}</span><small>{sub}</small></NavLink>)}</nav><div className="role-card"><small>Signed in as</small><strong>{profile?.role?.toUpperCase()}</strong><span>{profile?.name||profile?.email}</span><button className="ghost" onClick={async()=>{await logout();navigate('/login')}}>Sign out</button></div></aside><main className="main"><header className="topbar"><div><span className="status-dot"/> Live Operations</div><span>{profile?.name||profile?.email}</span></header><Routes><Route path="/crm" element={<Protected requiredRole={ROLES.CRM}><CRM/></Protected>}/><Route path="/warehouse" element={<Protected requiredRole={ROLES.WAREHOUSE}><ModulePage title="Warehousing" description="Flow-aware warehouse movement and dispatch operations are being connected to the shared ticket service."/></Protected>}/><Route path="/pdi" element={<Protected requiredRole={ROLES.PDI}><ModulePage title="PDI Inspection" description="Inspection queue, PDI result, evidence and history module foundation."/></Protected>}/><Route path="/logistics" element={<Protected requiredRole={ROLES.LOGISTICS}><ModulePage title="Logistics" description="ETA, In Transit, branch reporting and final closure module foundation."/></Protected>}/><Route path="/admin" element={<Protected requiredRole={ROLES.ADMIN}><ModulePage title="Admin Control Center" description="Users, access control, workflow manager, settings, exports and live audit logs."/></Protected>}/><Route path="/" element={<Navigate to={profile?.role===ROLES.ADMIN?'/admin':`/${profile?.role||ROLES.CRM}`} replace/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes></main></div>
 }
 
-export default App
+function ModulePage({title,description}) { return <section className="page"><div className="eyebrow">CRM SAIDHARA 2.0</div><h1>{title}</h1><p className="muted">{description}</p><div className="notice">This module is part of the new Firebase-backed architecture. Its operational screens are being added without changing the workflow contract.</div></section> }
+
+export default function App(){ const {user}=useAuth(); return user ? <Shell/> : <Routes><Route path="/login" element={<Login/>}/><Route path="*" element={<Navigate to="/login" replace/>}/></Routes> }
