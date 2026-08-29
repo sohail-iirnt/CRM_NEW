@@ -26,6 +26,12 @@ service cloud.firestore {
 
     match /workflowRules/{ruleId} { allow read: if signedIn(); allow write: if admin(); }
     match /settings/{settingId} { allow read: if signedIn(); allow write: if admin(); }
-    match /systemLogs/{logId} { allow create: if signedIn(); allow read: if admin(); allow update, delete: if false; }
+    // Immutable activity records are visible to authenticated operational users
+    // so ticket detail timelines and department histories can be rendered.
+    match /systemLogs/{logId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
   }
 }

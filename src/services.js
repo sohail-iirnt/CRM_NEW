@@ -7,7 +7,8 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  updateDoc
+  where,
+  writeBatch
 } from 'firebase/firestore'
 
 import { db } from './firebase.js'
@@ -114,18 +115,22 @@ export async function createTicket(
       serverTimestamp()
   }
 
-  const ref = await addDoc(
-    collection(db, TICKETS),
-    payload
-  )
+  const ref = doc(collection(db, TICKETS))
+  const logRef = doc(collection(db, LOGS))
+  const batch = writeBatch(db)
 
-  await writeLog({
+  batch.set(ref, payload)
+  batch.set(logRef, buildLog({
     action: 'ticket_created',
     ticketId: ref.id,
+    module: 'crm',
+    previousStatus: '',
+    newStatus: initialStatus,
     details:
       `${ticket.ticketType} ticket ${ticket.ticketId} created using workflow "${workflow.ruleName}". Initial status: ${initialStatus}.`,
     actor
-  })
+  }))
+  await batch.commit()
 
   return ref.id
 }
@@ -182,7 +187,8 @@ export async function updateTicket(
   id,
   changes,
   actor,
-  action = 'ticket_updated'
+  action = 'ticket_updated',
+  activity = {}
 ) {
   if (!db) {
     throw new Error(
@@ -196,44 +202,27 @@ export async function updateTicket(
     )
   }
 
-  await updateDoc(
-    doc(
-      db,
-      TICKETS,
-      id
-    ),
-    {
-      ...changes,
-
-      updatedAt:
-        serverTimestamp(),
-
-      lastActionAt:
-        serverTimestamp(),
-
-      lastActionBy:
-        actor?.uid || '',
-
-      lastActionByName:
-        actor?.name ||
-        actor?.email ||
-        '',
-
-      lastActionByRole:
-        actor?.role ||
-        ''
-    }
-  )
-
-  await writeLog({
+  const batch = writeBatch(db)
+  batch.update(doc(db, TICKETS, id), {
+    ...changes,
+    ...(changes.currentStatus ? { statusChangedAt: serverTimestamp() } : {}),
+    updatedAt: serverTimestamp(),
+    lastActionAt: serverTimestamp(),
+    lastActionBy: actor?.uid || '',
+    lastActionByName: actor?.name || actor?.email || '',
+    lastActionByRole: actor?.role || ''
+  })
+  batch.set(doc(collection(db, LOGS)), buildLog({
     action,
     ticketId: id,
-    details:
-      JSON.stringify(
-        changes
-      ),
-    actor
-  })
+    module: activity.module || actor?.role || '',
+    previousStatus: activity.previousStatus ?? changes.previousStatus ?? '',
+    newStatus: activity.newStatus ?? changes.currentStatus ?? '',
+    details: activity.details || JSON.stringify(changes),
+    actor,
+    metadata: activity.metadata || {}
+  }))
+  await batch.commit()
 }
 
 /*
@@ -359,41 +348,45 @@ export async function writeLog({
   action,
   ticketId = '',
   details = '',
-  actor
+  actor,
+  module = '',
+  previousStatus = '',
+  newStatus = '',
+  metadata = {}
 }) {
   if (!db) {
     return
   }
 
-  await addDoc(
-    collection(
-      db,
-      LOGS
-    ),
-    {
-      action,
+  await addDoc(collection(db, LOGS), buildLog({ action, ticketId, details, actor, module, previousStatus, newStatus, metadata }))
+}
 
-      ticketId,
+function buildLog({ action, ticketId = '', details = '', actor, module = '', previousStatus = '', newStatus = '', metadata = {} }) {
+  return {
+    action,
+    ticketId,
+    module,
+    previousStatus,
+    newStatus,
+    details,
+    metadata,
+    userId: actor?.uid || '',
+    userName: actor?.name || actor?.email || '',
+    role: actor?.role || '',
+    createdAt: serverTimestamp()
+  }
+}
 
-      details,
+/* Ticket-specific activity is sorted client-side, so this query needs no composite Firestore index. */
+export function subscribeTicketActivity(ticketId, callback, onError) {
+  if (!db || !ticketId) return () => {}
+  return onSnapshot(query(collection(db, LOGS), where('ticketId', '==', ticketId)), (snap) => {
+    callback(snap.docs.map(logDoc => ({ id: logDoc.id, ...logDoc.data() })).sort((a, b) => timestampValue(a.createdAt) - timestampValue(b.createdAt)))
+  }, onError)
+}
 
-      userId:
-        actor?.uid ||
-        '',
-
-      userName:
-        actor?.name ||
-        actor?.email ||
-        '',
-
-      role:
-        actor?.role ||
-        '',
-
-      createdAt:
-        serverTimestamp()
-    }
-  )
+function timestampValue(value) {
+  return value?.toMillis ? value.toMillis() : 0
 }
 
 /*

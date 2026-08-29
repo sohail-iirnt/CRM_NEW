@@ -163,18 +163,10 @@ function Shell() {
           {visibleModules
             .filter(([key]) => key !== MODULES.ADMIN)
             .map(([key, label, sub]) => (
-              <NavLink
-                key={key}
-                to={`/${key}`}
-                className={({ isActive }) =>
-                  isActive
-                    ? 'nav-item active'
-                    : 'nav-item'
-                }
-              >
-                <span>{label}</span>
-                <small>{sub}</small>
-              </NavLink>
+              <div key={key} className="nav-group">
+                <NavLink to={`/${key}`} className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}><span>{label}</span><small>{sub}</small></NavLink>
+                <NavLink to={`/${key}/history`} className={({ isActive }) => isActive ? 'nav-subitem active' : 'nav-subitem'}>History</NavLink>
+              </div>
             ))}
         </nav>
 
@@ -228,6 +220,7 @@ function Shell() {
               </Protected>
             }
           />
+          <Route path="/crm/history" element={<Protected requiredRole={ROLES.CRM}><CRM historyOnly /></Protected>} />
 
           {/* Warehouse */}
           <Route
@@ -238,6 +231,7 @@ function Shell() {
               </Protected>
             }
           />
+          <Route path="/warehouse/history" element={<Protected requiredRole={ROLES.WAREHOUSE}><Warehouse historyOnly /></Protected>} />
 
           {/* PDI */}
           <Route
@@ -248,6 +242,7 @@ function Shell() {
               </Protected>
             }
           />
+          <Route path="/pdi/history" element={<Protected requiredRole={ROLES.PDI}><PDI historyOnly /></Protected>} />
 
           {/* Logistics */}
           <Route
@@ -258,6 +253,7 @@ function Shell() {
               </Protected>
             }
           />
+          <Route path="/logistics/history" element={<Protected requiredRole={ROLES.LOGISTICS}><Logistics historyOnly /></Protected>} />
 
           {/* Admin */}
           <Route
