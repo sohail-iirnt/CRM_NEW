@@ -20,15 +20,50 @@ function TicketTable({ tickets, onOpen }) {
   return <div className="table-wrap"><table><thead><tr><th>Ticket</th><th>Type</th><th>Customer</th><th>Source / Company</th><th>Destination Branch</th><th>Qty</th><th>Status</th></tr></thead><tbody>{tickets.map(ticket => <tr key={ticket.id}><td><TicketLink ticket={ticket} onOpen={onOpen} /></td><td><span className={`badge ${ticket.ticketType}`}>{ticket.ticketType}</span></td><td>{ticket.customerName}</td><td>{ticket.source || ticket.destinationCompany || '—'}</td><td>{ticket.destinationBranch || '—'}</td><td>{ticket.qty}</td><td>{ticket.currentStatus || '—'}</td></tr>)}</tbody></table></div>
 }
 
-export default function CRM({ historyOnly = false }) {
-  const { profile } = useAuth(); const [type, setType] = useState(TICKET_TYPES.INBOUND); const [form, setForm] = useState(blank(type)); const [otherSource, setOtherSource] = useState(''); const [otherDestination, setOtherDestination] = useState(''); const [tickets, setTickets] = useState([]); const [logs, setLogs] = useState([]); const [saving, setSaving] = useState(false); const [message, setMessage] = useState(''); const [tab, setTab] = useState(historyOnly ? 'history' : 'entry'); const [selected, setSelected] = useState(null)
-  useEffect(() => subscribeTickets(setTickets), []); useEffect(() => subscribeLogs(setLogs), []); useEffect(() => { setTab(historyOnly ? 'history' : 'entry') }, [historyOnly]); useEffect(() => { setForm(blank(type)); setOtherSource(''); setOtherDestination('') }, [type])
-  const created = useMemo(() => new Set(logs.filter(log => log.module === 'crm' || log.role === 'crm').map(log => log.ticketId)), [logs]); const visible = historyOnly ? tickets.filter(ticket => created.has(ticket.id)) : tickets
-  async function submit(event) { event.preventDefault(); setSaving(true); setMessage(''); try { const payload = { ...form, ticketType: type, qty: Number(form.qty) }; if (type === TICKET_TYPES.INBOUND) { payload.source = payload.source === 'Other' ? otherSource : payload.source; payload.destinationCompany = payload.destinationCompany === 'Other' ? otherDestination : payload.destinationCompany }; await createTicket(payload, profile); setForm(blank(type)); setOtherSource(''); setOtherDestination(''); setMessage('Ticket created and routed according to the active workflow.') } catch (error) { setMessage(error.message) } finally { setSaving(false) } }
+export default function CRM({ historyOnly = false, view = 'entry' }) {
+  const { profile } = useAuth()
+  const [type, setType] = useState(TICKET_TYPES.INBOUND)
+  const [form, setForm] = useState(blank(type))
+  const [otherSource, setOtherSource] = useState('')
+  const [otherDestination, setOtherDestination] = useState('')
+  const [tickets, setTickets] = useState([])
+  const [logs, setLogs] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [tab, setTab] = useState(historyOnly ? 'history' : view === 'log' ? 'log' : 'entry')
+  const [selected, setSelected] = useState(null)
+
+  useEffect(() => subscribeTickets(setTickets), [])
+  useEffect(() => subscribeLogs(setLogs), [])
+  useEffect(() => setTab(historyOnly ? 'history' : view === 'log' ? 'log' : 'entry'), [historyOnly, view])
+  useEffect(() => { setForm(blank(type)); setOtherSource(''); setOtherDestination('') }, [type])
+
+  const created = useMemo(() => new Set(logs.filter(log => log.module === 'crm' || log.role === 'crm').map(log => log.ticketId)), [logs])
+  const visible = historyOnly ? tickets.filter(ticket => created.has(ticket.id)) : tickets
+
+  async function submit(event) {
+    event.preventDefault(); setSaving(true); setMessage('')
+    try {
+      const payload = { ...form, ticketType: type, qty: Number(form.qty) }
+      if (type === TICKET_TYPES.INBOUND) {
+        payload.source = payload.source === 'Other' ? otherSource : payload.source
+        payload.destinationCompany = payload.destinationCompany === 'Other' ? otherDestination : payload.destinationCompany
+      }
+      await createTicket(payload, profile)
+      setForm(blank(type)); setOtherSource(''); setOtherDestination('')
+      setMessage('Ticket created and routed according to the active workflow.')
+    } catch (error) { setMessage(error.message) } finally { setSaving(false) }
+  }
+
   const fields = type === TICKET_TYPES.INBOUND ? inboundFields : outboundFields
-  return <section className="page"><div className="page-head"><div><div className="eyebrow">CRM PORTAL</div><h1>{historyOnly ? 'CRM History' : 'Ticket Entry & Live Tracking'}</h1><p className="muted">{historyOnly ? 'Tickets and activity created or worked on by CRM.' : 'Create inbound or outbound tickets and monitor their current workflow state.'}</p></div></div>
-    {!historyOnly && <div className="tabs"><button className={tab === 'entry' ? 'tab active' : 'tab'} onClick={() => setTab('entry')}>Ticket Entry</button><button className={tab === 'log' ? 'tab active' : 'tab'} onClick={() => setTab('log')}>Master Ticket Log</button></div>}
-    {tab === 'entry' && !historyOnly ? <><div className="type-switch"><button type="button" className={type === TICKET_TYPES.INBOUND ? 'type active inbound' : 'type'} onClick={() => setType(TICKET_TYPES.INBOUND)}>INBOUND TICKET</button><button type="button" className={type === TICKET_TYPES.OUTBOUND ? 'type active outbound' : 'type'} onClick={() => setType(TICKET_TYPES.OUTBOUND)}>OUTBOUND TICKET</button></div><div className="card"><div className="card-head"><div><h2>Add {type === 'inbound' ? 'Inbound' : 'Outbound'} Ticket</h2><p className="muted">Fields change automatically with ticket type.</p></div><span className="badge">{type.toUpperCase()}</span></div><form className="form-grid" onSubmit={submit}>{fields.map(name => <Field key={name} name={name} value={form[name]} onChange={event => setForm({ ...form, [name]: event.target.value })} />)}{type === TICKET_TYPES.INBOUND && form.source === 'Other' && <label>Other Source<input value={otherSource} onChange={event => setOtherSource(event.target.value)} required /></label>}{type === TICKET_TYPES.INBOUND && form.destinationCompany === 'Other' && <label>Other Destination Company<input value={otherDestination} onChange={event => setOtherDestination(event.target.value)} required /></label>}<div className="form-actions"><button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save & Route Ticket'}</button></div></form>{message && <div className="notice">{message}</div>}</div></> : <div className="card"><div className="card-head"><h2>{historyOnly ? 'CRM Activity History' : 'Master Log & Live Tracking'}</h2><span className="muted">{visible.length} tickets</span></div><TicketTable tickets={visible} onOpen={setSelected} /></div>}
+
+  return <section className="page">
+    <div className="page-head"><div><div className="eyebrow">CRM PORTAL</div><h1>{historyOnly ? 'CRM History' : view === 'log' ? 'Master Ticket Log' : 'Ticket Entry & Live Tracking'}</h1><p className="muted">{historyOnly ? 'Tickets created or worked on by CRM with timestamped activity.' : view === 'log' ? 'Master view of tickets and their current workflow state.' : 'Create inbound or outbound tickets and monitor their current workflow state.'}</p></div></div>
+
+    {!historyOnly && <div className="tabs"><button className={tab === 'entry' ? 'tab active' : 'tab'} onClick={() => setTab('entry')}>Ticket Entry</button><button className={tab === 'log' ? 'tab active' : 'tab'} onClick={() => setTab('log')}>Master Ticket Log</button><button className={tab === 'history' ? 'tab active' : 'tab'} onClick={() => setTab('history')}>History</button></div>}
+
+    {tab === 'entry' && !historyOnly ? <><div className="type-switch"><button type="button" className={type === TICKET_TYPES.INBOUND ? 'type active inbound' : 'type'} onClick={() => setType(TICKET_TYPES.INBOUND)}>INBOUND TICKET</button><button type="button" className={type === TICKET_TYPES.OUTBOUND ? 'type active outbound' : 'type'} onClick={() => setType(TICKET_TYPES.OUTBOUND)}>OUTBOUND TICKET</button></div><div className="card"><div className="card-head"><div><h2>Add {type === 'inbound' ? 'Inbound' : 'Outbound'} Ticket</h2><p className="muted">Fields change automatically with ticket type.</p></div><span className="badge">{type.toUpperCase()}</span></div><form className="form-grid" onSubmit={submit}>{fields.map(name => <Field key={name} name={name} value={form[name]} onChange={event => setForm({ ...form, [name]: event.target.value })} />)}{type === TICKET_TYPES.INBOUND && form.source === 'Other' && <label>Other Source<input value={otherSource} onChange={event => setOtherSource(event.target.value)} required /></label>}{type === TICKET_TYPES.INBOUND && form.destinationCompany === 'Other' && <label>Other Destination Company<input value={otherDestination} onChange={event => setOtherDestination(event.target.value)} required /></label>}<div className="form-actions"><button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save & Route Ticket'}</button></div></form>{message && <div className="notice">{message}</div>}</div></> : <div className="card"><div className="card-head"><div><h2>{historyOnly ? 'CRM Activity History' : tab === 'history' ? 'CRM Activity History' : 'Master Log & Live Tracking'}</h2><span className="muted">{(historyOnly || tab === 'history' ? visible : tickets).length} tickets</span></div></div><TicketTable tickets={historyOnly || tab === 'history' ? visible : tickets} onOpen={setSelected} /></div>}
+
     <TicketDetail ticket={selected} onClose={() => setSelected(null)} />
   </section>
 }
