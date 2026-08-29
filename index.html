@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title> CRM SAIDHARA </title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Premium Enterprise UI Variables --- */
+        :root {
+            --primary: #2563eb;         
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --secondary: #f8fafc;
+            --background: #f1f5f9;
+            --surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --border-input: #cbd5e1;
+            
+            --sidebar-bg: #0f172a;      
+            --sidebar-hover: #1e293b;
+            --sidebar-active: #2563eb;
+            --sidebar-text: #f8fafc;
+            
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --danger: #e11d48;
+            --danger-bg: #ffe4e6;
+            --warning: #f59e0b;
+            --warning-bg: #fef3c7;
+            --purple: #8b5cf6;
+            
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--background); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- Sidebar & Mobile Overlay --- */
+        .sidebar { width: 280px; background-color: var(--sidebar-bg); color: var(--sidebar-text); display: flex; flex-direction: column; flex-shrink: 0; box-shadow: var(--shadow-lg); z-index: 30; transition: transform 0.3s ease;}
+        .sidebar-header { padding: 25px 20px; background-color: rgba(0,0,0,0.2); font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #1e293b; letter-spacing: 0.5px;}
+        .sidebar-header span { color: #38bdf8; }
+        .close-sidebar-btn { display: none; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+        .nav-menu { list-style: none; margin-top: 20px; padding: 0 10px; overflow-y: auto;}
+        .nav-item { padding: 14px 20px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 12px; font-size: 0.95rem; font-weight: 500; border-radius: var(--radius-md); color: #cbd5e1;}
+        .nav-item:hover { background-color: var(--sidebar-hover); color: white; }
+        .nav-item.active { background-color: var(--sidebar-active); color: white; font-weight: 600; box-shadow: var(--shadow-md); }
+
+        .mobile-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.5); z-index: 25; backdrop-filter: blur(2px); opacity: 0; transition: opacity 0.3s;}
+        .mobile-overlay.show { display: block; opacity: 1;}
+
+        /* --- Main Layout --- */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; position: relative; width: 100%;}
+        .top-bar { background-color: var(--surface); padding: 18px 35px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; box-shadow: var(--shadow-sm);}
+        .top-bar-left { display: flex; align-items: center; gap: 15px; }
+        .menu-toggle { display: none; background: none; border: none; font-size: 1.5rem; color: var(--text-main); cursor: pointer; }
+        .top-bar h1 { font-size: 1.4rem; color: var(--text-main); font-weight: 700; letter-spacing: -0.5px; }
+        .clock { color: var(--text-muted); font-size: 0.95rem; font-weight: 500; display: flex; align-items: center; gap: 8px;}
+        
+        .view-container { padding: 35px; max-width: 1400px; margin: 0 auto; width: 100%; display: none; animation: fadeIn 0.4s ease; }
+        .view-container.active { display: block; }
+
+        /* --- Layout Grids & Wrappers --- */
+        .crm-split-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;}
+        .admin-actions { display: flex; gap: 15px; flex-wrap: wrap;}
+
+        /* --- Cards & Forms --- */
+        .card { background: var(--surface); border-radius: var(--radius-lg); padding: 25px 30px; box-shadow: var(--shadow-md); margin-bottom: 30px; border: 1px solid var(--border); width: 100%;}
+        .card-title { font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;}
+        
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; width: 100%;}
+        .form-group.full-width { grid-column: 1 / -1; }
+        
+        label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;}
+        input, select, textarea { padding: 12px 14px; border: 1px solid var(--border-input); border-radius: var(--radius-md); font-size: 0.95rem; background-color: var(--surface); color: var(--text-main); transition: all 0.2s; width: 100%;}
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+        input:disabled, input[readonly], select:disabled { background-color: var(--secondary); color: var(--text-muted); cursor: not-allowed; }
+        
+        .info-box { background: var(--primary-light); border-left: 4px solid var(--primary); padding: 16px 20px; border-radius: 0 var(--radius-md) var(--radius-md) 0; margin-bottom: 25px; font-size: 0.95rem; color: #1e3a8a;}
+        
+        /* Dashboard Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin-bottom: 30px; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 25px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; position: relative; overflow: hidden;}
+        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary); }
+        .stat-card.success::before { background: var(--success); }
+        .stat-card.warning::before { background: var(--warning); }
+        .stat-card.danger::before { background: var(--danger); }
+        .stat-card h3 { font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; font-weight: 600;}
+        .stat-card .value { font-size: 2.2rem; font-weight: 700; color: var(--text-main); line-height: 1;}
+        .stat-card .sub-text { font-size: 0.8rem; color: var(--text-muted); margin-top: 10px; font-weight: 500;}
+
+        /* --- Pure HTML/CSS Funnel & Analytics --- */
+        .analytics-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 24px; margin-bottom: 30px; }
+        .analytics-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 25px; box-shadow: var(--shadow-md); width: 100%; }
+        
+        .funnel-container { width: 100%; margin-bottom: 15px; }
+        .funnel-bar { display: flex; height: 28px; width: 100%; background: var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 20px; }
+        .funnel-segment { height: 100%; transition: width 0.8s ease; display:flex; align-items:center; justify-content:center; color:white; font-size:0.75rem; font-weight:bold;}
+        .funnel-legend { display: flex; flex-direction: column; gap: 10px; }
+        .funnel-legend-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--secondary); border-radius: var(--radius-md); font-size: 0.9rem; border: 1px solid var(--border);}
+        .funnel-legend-label { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--text-main); }
+        .funnel-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+        /* --- Buttons --- */
+        .btn { padding: 10px 18px; border: 1px solid transparent; border-radius: var(--radius-md); font-size: 0.9rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; text-align: center; }
+        .btn-primary { background-color: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+        .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);}
+        .btn-success { background-color: var(--success); color: white; }
+        .btn-success:hover { background-color: #059669; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-danger:hover { background-color: #be123c; }
+        .btn-outline { background-color: var(--surface); color: var(--text-main); border-color: var(--border-input); }
+        .btn-outline:hover { background-color: var(--secondary); border-color: var(--text-muted); }
+        .btn-small { padding: 6px 12px; font-size: 0.8rem; }
+        .btn-icon { padding: 6px 10px; font-size: 0.9rem; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; transition: 0.2s;}
+        .btn-icon:hover { background: var(--secondary); border-color: var(--primary);}
+        
+        .upload-btn-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%;}
+        .upload-btn-wrapper input[type=file] { font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%; width: 100%;}
+
+        /* Image Upload Preview */
+        .photo-preview { margin-top: 15px; max-width: 100%; width: 250px; border-radius: var(--radius-md); border: 2px dashed var(--border-input); display: none; object-fit: contain; }
+
+        /* --- Tables & Links --- */
+        .table-container { overflow-y: auto; overflow-x: auto; max-height: 450px; border: 1px solid var(--border); border-radius: var(--radius-lg); position: relative; background: var(--surface); -webkit-overflow-scrolling: touch;}
+        table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; min-width: 800px;}
+        th, td { padding: 16px 20px; border-bottom: 1px solid var(--border); font-size: 0.9rem; white-space: nowrap; vertical-align: middle;}
+        th { background-color: var(--secondary); color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 var(--border); }
+        tfoot td { background-color: var(--secondary); font-weight: 700; border-top: 2px solid var(--border); }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background-color: var(--primary-light); }
+        
+        .ticket-link { color: var(--primary); font-weight: 700; text-decoration: none; border-bottom: 1px dashed var(--primary); cursor: pointer; transition: 0.2s;}
+        .ticket-link:hover { color: var(--primary-hover); border-bottom: 1px solid var(--primary-hover); }
+
+        .truncate-text { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle;}
+
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;}
+        .badge-pending { background: var(--warning-bg); color: #b45309; }
+        .badge-ready { background: #e0f2fe; color: #0369a1; }
+        .badge-done { background: var(--success-bg); color: #047857; }
+        .badge-dispatch { background: #f3e8ff; color: #7e22ce; }
+
+        /* --- Toast Notification --- */
+        #toast { visibility: hidden; min-width: 300px; background-color: var(--text-main); color: #fff; text-align: center; border-radius: var(--radius-md); padding: 16px 24px; position: fixed; z-index: 9999; bottom: 30px; left: 50%; transform: translateX(-50%); box-shadow: var(--shadow-lg); font-weight: 600; font-size: 0.95rem; }
+        #toast.show { visibility: visible; animation: fadein 0.4s, fadeout 0.4s 3.5s; }
+
+        /* --- Modals --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); z-index: 100; justify-content: center; align-items: center; backdrop-filter: blur(4px); padding: 20px;}
+        .modal-content { background: var(--surface); width: 100%; max-width: 900px; max-height: 95vh; display: flex; flex-direction: column; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: hidden; animation: slideUp 0.3s ease; }
+        .modal-content.small { max-width: 500px; }
+        .modal-header { padding: 20px 25px; background: var(--secondary); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;}
+        .modal-header h2 { font-size: 1.25rem; color: var(--text-main); font-weight: 700; }
+        .close-btn { cursor: pointer; font-size: 1.5rem; color: var(--text-muted); line-height: 1; transition: color 0.2s; padding: 5px;}
+        .close-btn:hover { color: var(--danger); }
+        .modal-body { padding: 25px; overflow-y: auto; flex-grow: 1; }
+        .modal-footer { padding: 15px 25px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background: var(--secondary); flex-shrink: 0; flex-wrap: wrap;}
+
+        .remark-box { background: var(--background); padding: 12px; border-radius: var(--radius-md); margin-bottom: 10px; border-left: 3px solid var(--primary); font-size: 0.9rem; word-wrap: break-word;}
+        .remark-meta { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px; font-weight: 600;}
+
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadein { from { bottom: 0; opacity: 0; } to { bottom: 30px; opacity: 1; } }
+        @keyframes fadeout { from { bottom: 30px; opacity: 1; } to { bottom: 0; opacity: 0; } }
+
+        /* Scrollbar customization */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ================= MEDIA QUERIES (MOBILE RESPONSIVENESS) ================= */
+        @media (max-width: 1024px) {
+            .crm-split-layout { grid-template-columns: 1fr; gap: 20px;}
+            .analytics-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; top: 0; left: -100%; height: 100vh; transition: left 0.3s ease; }
+            .sidebar.open { left: 0; }
+            .close-sidebar-btn { display: block; }
+            .menu-toggle { display: block; margin-right: 5px;}
+
+            .top-bar { padding: 15px 20px; }
+            .top-bar h1 { font-size: 1.1rem; }
+            .clock { display: none; }
+
+            .view-container { padding: 20px 15px; }
+            .card { padding: 20px 15px; }
+            .card-title { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .card-title select, .card-title button { width: 100%; }
+
+            .admin-header { flex-direction: column; align-items: stretch; gap: 15px; }
+            .admin-header h2 { font-size: 1.2rem; }
+            .admin-actions { flex-direction: column; gap: 10px; }
+            .admin-actions button { width: 100%; }
+
+            .modal-overlay { padding: 10px; }
+            .modal-header h2 { font-size: 1.1rem; }
+            .modal-body { padding: 15px; }
+            .modal-footer { padding: 15px; flex-direction: column; }
+            .modal-footer button { width: 100%; }
+            .modal-body .form-grid { grid-template-columns: 1fr; }
+            
+            form > div[style*="text-align: right;"], 
+            form > div[style*="justify-content: flex-end;"] { flex-direction: column; text-align: stretch !important; display: flex; gap: 10px; }
+            form button { width: 100%; }
+            
+            #toast { width: 90%; min-width: auto; padding: 12px 15px; font-size: 0.85rem;}
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div>🏢 <span>CRM SAIDHARA - LND</span></div>
+            <button class="close-sidebar-btn" onclick="toggleSidebar()">&times;</button>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active" onclick="switchView('crmView', this, 'CRM')">📝 1. CRM Portal</li>
+            <li class="nav-item" onclick="switchView('warehouseView', this, 'Warehouse')">🏭 2. Warehousing</li>
+            <li class="nav-item" onclick="switchView('pdiView', this, 'PDI')">🔍 3. PDI Inspection</li>
+            <li class="nav-item" onclick="switchView('adminView', this, 'Admin')">📊 4. Master Admin</li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <h1 id="pageTitle">CRM Portal - Data Entry</h1>
+            </div>
+            <div class="clock" id="clock">🕒 Loading System Time...</div>
+        </div>
+
+        <!-- ================= PANEL 1: CRM TEAM ================= -->
+        <div id="crmView" class="view-container active">
+            <div class="crm-split-layout">
+                <!-- Manual Entry -->
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-title">Register Single Ticket</div>
+                    <form id="crmForm" onsubmit="submitCrm(event)">
+                        <input type="hidden" id="editCrmId">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Ticket ID <span style="color:var(--danger)">*</span></label>
+                                <input type="text" id="crmTicketId" required placeholder="Ex: TKT-001">
+                            </div>
+                            <div class="form-group">
+                                <label>Customer Name <span style="color:var(--danger)">*</span></label>
+                                <input type="text" id="crmCustomer" required placeholder="Client / Company Name">
+                            </div>
+                            <div class="form-group">
+                                <label>Shed Name <span style="color:var(--danger)">*</span></label>
+                                <select id="crmShed" required>
+                                    <option value="" disabled selected>Select Shed...</option>
+                                    <option value="S">S</option><option value="P">P</option>
+                                    <option value="T">T</option><option value="O">O</option>
+                                    <option value="SS (Padgha)">SS (Padgha)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Destination Branch <span style="color:var(--danger)">*</span></label>
+                                <input type="text" id="crmDestination" required placeholder="Destination">
+                            </div>
+                            <div class="form-group full-width">
+                                <label>Item Code(s) <span style="color:var(--danger)">*</span> <span style="text-transform:none; font-weight:400;">(Comma separated)</span></label>
+                                <input type="text" id="crmItemCode" required placeholder="Ex: ITM-001, ITM-002, ITM-003">
+                            </div>
+                            <div class="form-group">
+                                <label>Total Quantity <span style="color:var(--danger)">*</span></label>
+                                <input type="number" id="crmQuantity" required min="1" placeholder="Total Items">
+                            </div>
+                            <div class="form-group">
+                                <label>Description (Optional)</label>
+                                <input type="text" id="crmDesc" placeholder="Details about the item...">
+                            </div>
+                        </div>
+                        <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 10px;">
+                            <button type="button" class="btn btn-outline" onclick="resetCrmForm()" style="display:none;" id="btnCancelCrm">Cancel Edit</button>
+                            <button type="submit" class="btn btn-primary" id="btnSaveCrm">Save & Push to Warehouse</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- CSV Bulk Import / Export -->
+                <div class="card" style="margin-bottom: 0; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div class="card-title">Bulk Operations</div>
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.5;">
+                            Upload multiple tickets simultaneously. Support multiple item codes per ticket via quotes (e.g. <code>"ITM-1, ITM-2"</code>).
+                        </p>
+                        <div style="display: flex; flex-direction: column; gap: 15px;">
+                            <button class="btn btn-outline" onclick="downloadCSVTemplate()" style="width: 100%;">📄 Download CSV Template</button>
+                            <div class="upload-btn-wrapper" style="width: 100%;">
+                                <button class="btn btn-primary" style="width: 100%;">⬆️ Upload & Import CSV File</button>
+                                <input type="file" id="csvFileInput" accept=".csv" onchange="handleCSVUpload(event)" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border);">
+                        <p style="font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;">Export System Data</p>
+                        <button class="btn btn-success" onclick="exportCrmCSV()" style="width: 100%;">⬇️ Export Latest CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CRM Tables -->
+            <div class="card" style="margin-top: 30px;">
+                <div class="card-title">CRM Master Log & Live Tracking</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Customer</th>
+                                <th>Shed</th>
+                                <th>Item Code(s)</th>
+                                <th>Qty</th>
+                                <th>Live Status</th>
+                                <th>Added On</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="crmTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PANEL 2: WAREHOUSING TEAM ================= -->
+        <div id="warehouseView" class="view-container">
+            <div class="card">
+                <div class="card-title">
+                    <span>Task 1: Pending Movement (To PDI Zone)</span>
+                    <select id="warehouseShedFilter" onchange="renderWarehouseTables()" style="width: 200px; max-width: 100%;">
+                        <option value="ALL">All Sheds</option>
+                        <option value="S">Shed S</option><option value="P">Shed P</option>
+                        <option value="T">Shed T</option><option value="O">Shed O</option>
+                        <option value="SS (Padgha)">Shed SS (Padgha)</option>
+                    </select>
+                </div>
+                <div class="table-container" style="max-height: 300px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Customer</th>
+                                <th>Shed</th>
+                                <th>Item Code(s)</th>
+                                <th>Qty</th>
+                                <th>Added Time</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="warehousePendingBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title" style="color: var(--primary);">
+                    <span>Task 2: Ready For Dispatch (Post-PDI)</span>
+                </div>
+                <div class="info-box" style="background: var(--warning-bg); border-color: var(--warning); color: #92400e;">
+                    These items have passed PDI Inspection. Click "Dispatch Done" to enter transport details.
+                </div>
+                <div class="table-container" style="max-height: 300px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Customer</th>
+                                <th>Shed</th>
+                                <th>Item Code(s)</th>
+                                <th>Okay Qty</th>
+                                <th>PDI Cleared On</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="warehouseDispatchBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Warehouse History -->
+            <div class="card">
+                <div class="card-title" style="color: var(--text-muted);">History: Fully Dispatched Orders</div>
+                <div class="table-container" style="max-height: 250px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Customer</th>
+                                <th>Shed</th>
+                                <th>Freight Order</th>
+                                <th>Vehicle No</th>
+                                <th>Dispatched On</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="warehouseHistoryBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PANEL 3: PDI INSPECTION TEAM ================= -->
+        <div id="pdiView" class="view-container">
+            <div class="card">
+                <div class="card-title">Tickets Waiting in PDI Zone</div>
+                <div class="table-container" style="max-height: 300px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Customer</th>
+                                <th>Shed</th>
+                                <th>Item Code(s)</th>
+                                <th>Expected Qty</th>
+                                <th>Wait Time</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pdiPendingBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PDI Entry Form -->
+            <div class="card" id="pdiFormCard" style="display:none; border-left: 6px solid var(--primary); box-shadow: var(--shadow-lg);">
+                <div class="card-title">
+                    Process Inspection <span id="pdiActiveTicketLabel" style="color:var(--primary); font-size:1rem; font-weight:700;"></span>
+                </div>
+                <form id="pdiForm" onsubmit="submitPdi(event)">
+                    <input type="hidden" id="pdiActiveTicketId">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Inspector Name <span style="color:var(--danger)">*</span></label>
+                            <select id="pdiSupervisor" required>
+                                <option value="" disabled selected>Select Inspector...</option>
+                                <option value="Sohail">Sohail</option>
+                                <option value="Shrikant">Shrikant</option>
+                                <option value="Swapnil">Swapnil</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Sample Count Checked <span style="color:var(--danger)">*</span></label>
+                            <input type="number" id="pdiTotal" required min="1" oninput="calculatePdi()">
+                        </div>
+                        <div class="form-group">
+                            <label>Defective / Damaged <span style="color:var(--danger)">*</span></label>
+                            <input type="number" id="pdiDamage" required min="0" placeholder="0" oninput="calculatePdi()">
+                        </div>
+                        <div class="form-group">
+                            <label>Approved (Auto)</label>
+                            <input type="number" id="pdiOkay" readonly style="background: var(--success-bg); color: var(--success); font-weight: 700; font-size: 1.1rem;">
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label>Attach Evidence Photo (Optional)</label>
+                            <input type="file" id="pdiPhotoInput" accept="image/*" onchange="handlePdiPhoto(event)" style="padding: 8px;">
+                            <img id="pdiPhotoPreview" class="photo-preview" src="" alt="Preview">
+                            <input type="hidden" id="pdiPhotoBase64">
+                        </div>
+
+                        <div class="form-group full-width">
+                            <label>Detailed Remarks</label>
+                            <textarea id="pdiRemarks" placeholder="Enter specific defect reasons or notes..." rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div style="margin-top: 25px; display: flex; justify-content: flex-end; gap: 15px;">
+                        <button type="button" class="btn btn-outline" onclick="cancelPdiForm()">Cancel / Close</button>
+                        <button type="submit" class="btn btn-success" style="font-size: 1rem;">✅ Approve & Complete</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- PDI History -->
+            <div class="card">
+                <div class="card-title" style="color: var(--text-muted);">Inspection History Logs</div>
+                <div class="table-container" style="max-height: 250px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Item Code(s)</th>
+                                <th>Inspector</th>
+                                <th>Okay Qty</th>
+                                <th>Defects</th>
+                                <th>Completed On</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pdiHistoryBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= PANEL 4: ADMIN PANEL ================= -->
+        <div id="adminView" class="view-container">
+            
+            <div class="admin-header">
+                <h2 style="font-size: 1.4rem;">Executive Dashboard</h2>
+                <div class="admin-actions">
+                    <button class="btn btn-outline" onclick="exportAdminCSV()">⬇️ Export Full CSV</button>
+                    <button class="btn btn-primary" onclick="printAllReports()">🖨️ Batch Summary Report</button>
+                    <button class="btn btn-danger" onclick="clearSystemData()" title="Reset Database">🗑️ Clear Data</button>
+                </div>
+            </div>
+
+            <!-- Analytics Dashboard -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Volume</h3>
+                    <div class="value" id="dashTotal">0</div>
+                    <div class="sub-text">System Lifetime Tickets</div>
+                </div>
+                <div class="stat-card warning">
+                    <h3>Pending Process</h3>
+                    <div class="value" id="dashPendingAll">0</div>
+                    <div class="sub-text">In WH / PDI Zones</div>
+                </div>
+                <div class="stat-card danger">
+                    <h3>Overall Defect Rate</h3>
+                    <div class="value" id="dashDefectRate">0%</div>
+                    <div class="sub-text">Damage vs Sample Checked</div>
+                </div>
+                <div class="stat-card success">
+                    <h3>Dispatched Orders</h3>
+                    <div class="value" id="dashDispatched">0</div>
+                    <div class="sub-text">Fully Completed Cycles</div>
+                </div>
+                <div class="stat-card" style="border-left-color: var(--purple);">
+                    <h3>Avg PDI Cycle Time</h3>
+                    <div class="value" id="dashAvgTime" style="font-size: 1.8rem; margin-top:5px;">0m</div>
+                    <div class="sub-text">Creation to Inspection</div>
+                </div>
+            </div>
+
+            <!-- PURE HTML ANALYTICS (Zero External Dependencies) -->
+            <div class="analytics-grid">
+                <!-- 1. Real Time Pipeline Funnel -->
+                <div class="chart-box">
+                    <h3 style="font-size:1rem; margin-bottom:15px; color:var(--text-main); font-weight:700;">Real-Time Pipeline Funnel</h3>
+                    <div id="htmlFunnelContainer">
+                        <!-- Funnel Content Injected Here -->
+                    </div>
+                </div>
+
+                <!-- 2. Shed-Wise Summary Analytics Table -->
+                <div class="chart-box">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap: wrap; gap:10px;">
+                        <h3 style="font-size:1rem; color:var(--text-main); font-weight:700;">Shed-Wise Volume Data</h3>
+                        <select id="adminShedFilter" onchange="renderAdminDashboard()" style="width:140px; padding: 6px 10px; border-radius:4px; border:1px solid var(--border-input);">
+                            <option value="ALL">All Sheds</option>
+                            <option value="S">Shed S</option><option value="P">Shed P</option>
+                            <option value="T">Shed T</option><option value="O">Shed O</option>
+                            <option value="SS (Padgha)">Shed SS (Padgha)</option>
+                        </select>
+                    </div>
+                    <div class="table-container" style="max-height: 280px; border:none; box-shadow:none;">
+                        <table style="min-width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th>Shed</th>
+                                    <th>Tot</th>
+                                    <th>P-WH</th>
+                                    <th>R-PDI</th>
+                                    <th>Insp</th>
+                                    <th>Disp</th>
+                                    <th>OK</th>
+                                    <th>Def</th>
+                                    <th>Pass%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shedTableBody"></tbody>
+                            <tfoot id="shedTableFoot"></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity Feed -->
+            <div class="card">
+                <div class="card-title">Recent System Activity</div>
+                <div class="table-container" style="max-height: 250px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Ticket ID</th>
+                                <th>Shed</th>
+                                <th>Action Performed</th>
+                                <th>Current Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminActivityBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Master Log Table -->
+            <div class="card">
+                <div class="card-title">Global Master Tracking Log</div>
+                <div class="table-container" style="max-height: 500px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Customer</th>
+                                <th>Shed</th>
+                                <th>Item Code(s)</th>
+                                <th>Total</th>
+                                <th>Okay</th>
+                                <th>Damage</th>
+                                <th>Status</th>
+                                <th>Cycle Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Universal View Ticket Modal -->
+    <div id="viewUniversalModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Ticket Details: <span id="uvTicketTitle" style="color:var(--primary);"></span></h2>
+                <span class="close-btn" onclick="closeModal('viewUniversalModal')">&times;</span>
+            </div>
+            <div class="modal-body" id="uvModalBody">
+                <!-- Injected dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('viewUniversalModal')">Close View</button>
+                <button class="btn btn-primary" id="uvPrintBtn" style="display:none;">🖨️ Print Document</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Extra Remark Modal -->
+    <div id="addRemarkModal" class="modal-overlay">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h2>Add Extra Remark</h2>
+                <span class="close-btn" onclick="closeModal('addRemarkModal')">&times;</span>
+            </div>
+            <form onsubmit="submitExtraRemark(event)">
+                <div class="modal-body">
+                    <p style="margin-bottom: 15px; font-size: 0.9rem; color: var(--text-muted);">Appending remark to Ticket: <strong id="remarkTicketLabel" style="color:var(--primary);"></strong></p>
+                    <input type="hidden" id="remarkTicketId">
+                    <input type="hidden" id="remarkUserRole">
+                    <div class="form-group">
+                        <label>Your Remark / Update</label>
+                        <textarea id="remarkText" required rows="4" placeholder="Type your additional note here..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('addRemarkModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Remark</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dispatch Entry Modal -->
+    <div id="dispatchModal" class="modal-overlay">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h2>Finalize Dispatch Route</h2>
+                <span class="close-btn" onclick="closeModal('dispatchModal')">&times;</span>
+            </div>
+            <form onsubmit="submitDispatch(event)">
+                <div class="modal-body">
+                    <p style="margin-bottom: 20px; font-size: 0.9rem; color: var(--text-muted);">Enter transportation details to finalize dispatch for Ticket <strong id="dispTicketLabel" style="color:var(--primary);"></strong>. All fields optional.</p>
+                    <input type="hidden" id="dispTicketId">
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Freight Order Number</label>
+                        <input type="text" id="dispFO" placeholder="Ex: FO-998877">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Load Number</label>
+                        <input type="text" id="dispLoad" placeholder="Ex: LD-456">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>Vehicle / Truck Number</label>
+                        <input type="text" id="dispVehicle" placeholder="Ex: MH-04-AB-1234">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('dispatchModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Dispatch Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"></div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // --- 1. System Initialization & Global State ---
+        // NEW STORAGE KEY: Guarantees a completely clean slate avoiding previous cache issues.
+        const STORAGE_KEY = 'godrej_wms_production_final';
+        let db = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let activeRole = 'CRM'; 
+        
+        // Clock Update
+        setInterval(() => {
+            const opts = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('clock').innerText = '🕒 ' + new Date().toLocaleString('en-IN', opts);
+        }, 1000);
+
+        // Core Utilities
+        function showToast(msg, error=false) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.backgroundColor = error ? 'var(--danger)' : 'var(--text-main)';
+            t.className = 'show';
+            setTimeout(() => t.className = t.className.replace('show', ''), 3900);
+        }
+        
+        function saveDb() { 
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); 
+            } catch(e) {
+                showToast("⚠️ Storage full! Photo size is too large.", true);
+            }
+        }
+        
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+        }
+        
+        function clearSystemData() {
+            if(confirm("🚨 WARNING: This will permanently delete ALL tickets and reset the local database. Are you absolutely sure?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                db = [];
+                location.reload();
+            }
+        }
+
+        // Mobile Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            if (sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+            } else {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+            }
+        }
+
+        function refreshAllViews() {
+            try { renderCrmTable(); } catch(e){}
+            try { renderWarehouseTables(); } catch(e){}
+            try { renderPdiTables(); } catch(e){}
+            try { renderAdminDashboard(); } catch(e){}
+        }
+
+        // Navigation Router
+        function switchView(viewId, element, role) {
+            activeRole = role || activeRole; 
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            const target = document.getElementById(viewId);
+            if(target) target.classList.add('active');
+            if(element) element.classList.add('active');
+            
+            document.getElementById('pageTitle').innerText = element ? element.innerText.substring(5) : 'WMS Portal';
+
+            if(window.innerWidth <= 768) { toggleSidebar(); }
+            refreshAllViews();
+        }
+
+        // --- Ticket Formatting & View Modal ---
+        function formatItems(itemsStr, ticketId) {
+            if(!itemsStr) return `<span style="color:var(--text-muted)">N/A</span>`;
+            return `<div class="truncate-text" title="Click to view full details" onclick="viewUniversalTicket('${ticketId}')">${itemsStr}</div>`;
+        }
+        function ticketLink(ticketId) {
+            return `<a class="ticket-link" onclick="viewUniversalTicket('${ticketId}')" title="View Full Details">${ticketId}</a>`;
+        }
+
+        function viewUniversalTicket(ticketId) {
+            const item = db.find(x => x.ticketId === ticketId);
+            if(!item) return;
+
+            document.getElementById('uvTicketTitle').innerText = item.ticketId;
+            
+            const t1 = item.timestamps?.crmAdded ? new Date(item.timestamps.crmAdded).toLocaleString('en-IN') : 'N/A';
+            const t2 = item.timestamps?.warehouseMoved ? new Date(item.timestamps.warehouseMoved).toLocaleString('en-IN') : 'Pending';
+            const t3 = item.timestamps?.pdiCompleted ? new Date(item.timestamps.pdiCompleted).toLocaleString('en-IN') : 'Pending';
+            const t4 = item.timestamps?.dispatched ? new Date(item.timestamps.dispatched).toLocaleString('en-IN') : 'Pending';
+
+            let pdiUI = '', dispatchUI = '', photoUI = '', extraRemarksUI = '';
+
+            if(item.pdiDetails) {
+                pdiUI = `
+                <table style="margin-top:20px; width:100%; min-width:auto; border:1px solid var(--border); border-radius:8px;">
+                    <tr style="background:var(--background);">
+                        <th>Total Checked</th><th>Approved</th><th>Defective</th>
+                    </tr>
+                    <tr>
+                        <td style="text-align:center; font-size:1.1rem;">${item.pdiDetails.total || 0}</td>
+                        <td style="text-align:center; color:var(--success); font-weight:700; font-size:1.1rem;">${item.pdiDetails.okay || 0}</td>
+                        <td style="text-align:center; color:var(--danger); font-weight:700; font-size:1.1rem;">${item.pdiDetails.damage || 0}</td>
+                    </tr>
+                </table>
+                <div style="margin-top:15px;">
+                    <strong>Inspector Remarks (${item.pdiDetails.supervisor || 'N/A'})</strong>
+                    <p style="background:var(--background); padding:12px; border-radius:6px; margin-top:8px; white-space: pre-wrap;">${item.pdiDetails.remarks || 'None'}</p>
+                </div>`;
+                
+                if(item.pdiDetails.photo) {
+                    photoUI = `<div style="margin-top:20px;"><strong>Inspection Evidence:</strong><br><img src="${item.pdiDetails.photo}" style="max-width:100%; width:300px; border-radius:8px; border:1px solid #ccc; margin-top:10px;"></div>`;
+                }
+            }
+
+            if(item.dispatchDetails) {
+                dispatchUI = `
+                <h3 style="margin-top:25px; font-size:1rem; border-bottom:1px solid var(--border); padding-bottom:8px;">Dispatch Logistics</h3>
+                <div class="form-grid" style="margin-top:10px;">
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Freight Order</span><br><strong>${item.dispatchDetails.foNo || 'N/A'}</strong></div>
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Load No</span><br><strong>${item.dispatchDetails.loadNo || 'N/A'}</strong></div>
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Vehicle</span><br><strong>${item.dispatchDetails.vehicleNo || 'N/A'}</strong></div>
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Dispatch Time</span><br><strong>${t4}</strong></div>
+                </div>`;
+            }
+
+            if(item.extraRemarks && Array.isArray(item.extraRemarks) && item.extraRemarks.length > 0) {
+                extraRemarksUI = `<div style="margin-top:20px;"><strong>Appended Remarks Log:</strong><div style="margin-top:10px;">`;
+                item.extraRemarks.forEach(r => {
+                    const rDate = new Date(r.timestamp).toLocaleString('en-IN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+                    extraRemarksUI += `<div class="remark-box"><div class="remark-meta">${r.role} Panel • ${rDate}</div>${r.text}</div>`;
+                });
+                extraRemarksUI += `</div></div>`;
+            }
+
+            document.getElementById('uvModalBody').innerHTML = `
+                <div class="form-grid">
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Customer</span><br><strong>${item.customerName || 'N/A'}</strong></div>
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Shed</span><br><strong>${item.shed || 'N/A'}</strong></div>
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Destination</span><br><strong>${item.destination || 'N/A'}</strong></div>
+                    <div><span style="font-size:0.75rem; color:var(--text-muted);">Status</span><br><strong style="color:var(--primary);">${item.status || 'Unknown'}</strong></div>
+                </div>
+                
+                <div style="margin-top:20px;">
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Item Code(s)</span><br>
+                    <div style="background:var(--background); padding:10px; border-radius:6px; word-break:break-all; font-family:monospace; margin-top:5px;">${item.itemCode || 'N/A'}</div>
+                </div>
+
+                <div style="display:flex; flex-wrap:wrap; gap:15px; margin-top:20px; padding:15px; background:var(--background); border-radius:8px; font-size:0.85rem;">
+                    <div style="flex:1; min-width:120px; border-left:3px solid #cbd5e1; padding-left:10px;"><strong>1. Created</strong><br>${t1}</div>
+                    <div style="flex:1; min-width:120px; border-left:3px solid #cbd5e1; padding-left:10px;"><strong>2. WH Moved</strong><br>${t2}</div>
+                    <div style="flex:1; min-width:120px; border-left:3px solid var(--success); padding-left:10px;"><strong>3. PDI Passed</strong><br>${t3}</div>
+                </div>
+                ${pdiUI}
+                ${extraRemarksUI}
+                ${photoUI}
+                ${dispatchUI}
+            `;
+
+            // Admin print logic
+            const printBtn = document.getElementById('uvPrintBtn');
+            if(activeRole === 'Admin' && item.status !== 'Pending Warehouse' && item.status !== 'Ready for PDI') {
+                printBtn.style.display = 'inline-flex';
+                printBtn.onclick = () => {
+                    const win = window.open('', '_blank');
+                    win.document.write(`<html><head><title>Report ${item.ticketId}</title></head><body>${generateReportHTML(item, true)}</body></html>`);
+                    win.document.close();
+                    setTimeout(() => { win.print(); }, 500);
+                };
+            } else {
+                printBtn.style.display = 'none';
+            }
+
+            document.getElementById('viewUniversalModal').style.display = 'flex';
+        }
+
+        // --- Extra Remark System ---
+        function openRemarkModal(ticketId) {
+            document.getElementById('remarkTicketId').value = ticketId;
+            document.getElementById('remarkUserRole').value = activeRole;
+            document.getElementById('remarkTicketLabel').innerText = ticketId;
+            document.getElementById('remarkText').value = '';
+            document.getElementById('addRemarkModal').style.display = 'flex';
+        }
+
+        function submitExtraRemark(e) {
+            e.preventDefault();
+            const tId = document.getElementById('remarkTicketId').value;
+            const role = document.getElementById('remarkUserRole').value;
+            const text = document.getElementById('remarkText').value.trim();
+            
+            const idx = db.findIndex(x => x.ticketId === tId);
+            if(idx > -1 && text) {
+                if(!db[idx].extraRemarks) db[idx].extraRemarks = [];
+                db[idx].extraRemarks.push({ timestamp: Date.now(), role: role, text: text });
+                saveDb();
+                showToast(`✅ Remark added to ${tId}`);
+                closeModal('addRemarkModal');
+                refreshAllViews();
+            }
+        }
+
+        // --- 2. CRM PORTAL LOGIC ---
+        function submitCrm(e) {
+            e.preventDefault();
+            const id = document.getElementById('editCrmId').value;
+            const ticketId = document.getElementById('crmTicketId').value.trim();
+            
+            const data = {
+                ticketId: ticketId,
+                customerName: document.getElementById('crmCustomer').value.trim(),
+                shed: document.getElementById('crmShed').value,
+                destination: document.getElementById('crmDestination').value,
+                itemCode: document.getElementById('crmItemCode').value, // Commas allowed
+                quantity: parseInt(document.getElementById('crmQuantity').value),
+                description: document.getElementById('crmDesc').value,
+                status: 'Pending Warehouse',
+                timestamps: { crmAdded: Date.now(), warehouseMoved: null, pdiCompleted: null, dispatched: null },
+                pdiDetails: null, dispatchDetails: null, extraRemarks: []
+            };
+
+            if (id) {
+                const index = db.findIndex(x => x.ticketId === id);
+                if(index > -1) {
+                    data.timestamps = db[index].timestamps || data.timestamps;
+                    data.status = db[index].status || data.status;
+                    data.pdiDetails = db[index].pdiDetails;
+                    data.dispatchDetails = db[index].dispatchDetails;
+                    data.extraRemarks = db[index].extraRemarks || [];
+                    db[index] = data;
+                    showToast('✅ Ticket Updated Successfully');
+                }
+            } else {
+                if(db.some(x => x.ticketId === ticketId)) { showToast('⚠️ Ticket ID already exists!', true); return; }
+                db.unshift(data);
+                showToast('✅ Ticket Created & Pushed to Warehouse');
+            }
+
+            saveDb(); resetCrmForm(); refreshAllViews();
+        }
+
+        function editCrm(ticketId) {
+            const item = db.find(x => x.ticketId === ticketId);
+            if(!item) return;
+            document.getElementById('editCrmId').value = item.ticketId;
+            document.getElementById('crmTicketId').value = item.ticketId;
+            document.getElementById('crmTicketId').disabled = true;
+            document.getElementById('crmCustomer').value = item.customerName || '';
+            document.getElementById('crmShed').value = item.shed || '';
+            document.getElementById('crmDestination').value = item.destination || '';
+            document.getElementById('crmItemCode').value = item.itemCode || '';
+            document.getElementById('crmQuantity').value = item.quantity || 1;
+            document.getElementById('crmDesc').value = item.description || '';
+            
+            document.getElementById('btnSaveCrm').innerText = "Update Ticket";
+            document.getElementById('btnCancelCrm').style.display = "inline-block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetCrmForm() {
+            document.getElementById('crmForm').reset();
+            document.getElementById('editCrmId').value = '';
+            document.getElementById('crmTicketId').disabled = false;
+            document.getElementById('btnSaveCrm').innerText = "Save & Push to Warehouse";
+            document.getElementById('btnCancelCrm').style.display = "none";
+        }
+
+        function renderCrmTable() {
+            const tbody = document.getElementById('crmTableBody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            if(db.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No records found.</td></tr>'; return; }
+            
+            db.forEach(item => {
+                let badge = 'badge-pending';
+                if(item.status === 'Ready for PDI') badge = 'badge-ready';
+                if(item.status === 'Inspection Complete') badge = 'badge-done';
+                if(item.status === 'Dispatched') badge = 'badge-dispatch';
+
+                tbody.innerHTML += `<tr>
+                    <td>${ticketLink(item.ticketId)}</td>
+                    <td>${item.customerName || 'N/A'}</td>
+                    <td>${item.shed || 'N/A'}</td>
+                    <td>${formatItems(item.itemCode, item.ticketId)}</td>
+                    <td>${item.quantity || 0}</td>
+                    <td><span class="badge ${badge}">${item.status || 'Unknown'}</span></td>
+                    <td>${item.timestamps?.crmAdded ? new Date(item.timestamps.crmAdded).toLocaleString('en-IN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'N/A'}</td>
+                    <td style="display:flex; gap:8px;">
+                        <button class="btn-icon" onclick="editCrm('${item.ticketId}')" ${item.status !== 'Pending Warehouse' ? 'disabled' : ''} title="Edit Ticket">✏️</button>
+                        <button class="btn-icon" onclick="openRemarkModal('${item.ticketId}')" title="Add Extra Remark">💬</button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        // CSV Logic
+        function downloadCSVTemplate() {
+            const content = 'Ticket ID,Customer Name,Shed (S/P/T/O/SS),Destination,"Item Code(s)",Quantity,Description\nTKT-1001,Reliance Retail,S,Mumbai,"ITM-A01, ITM-A02",50,Sample parts\nTKT-1002,Tata Motors,P,Pune,ITM-B02,120,Sample part B';
+            triggerDownload(content, "WMS_Bulk_Import_Template.csv");
+        }
+
+        function handleCSVUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = e => { parseCSV(e.target.result); document.getElementById('csvFileInput').value = ''; };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(text) {
+            const regex = /(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^,]+))/g;
+            const lines = text.split('\n');
+            let added = 0, skipped = 0;
+            
+            for(let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if(!line) continue;
+                
+                let p = [];
+                let match;
+                while (match = regex.exec(line)) { p.push(match[1] ? match[1].replace(/\"\"/g, '\"') : match[2]); }
+                
+                if(p.length >= 6) {
+                    const tId = p[0] ? p[0].trim() : '';
+                    if(!tId || db.some(x => x.ticketId === tId)) { skipped++; continue; }
+                    
+                    let parsedShed = p[2] ? p[2].trim().toUpperCase() : 'S';
+                    if(parsedShed === 'SS') parsedShed = 'SS (Padgha)';
+
+                    db.unshift({
+                        ticketId: tId,
+                        customerName: p[1] ? p[1].trim() : 'Unknown',
+                        shed: parsedShed,
+                        destination: p[3] ? p[3].trim() : 'N/A',
+                        itemCode: p[4] ? p[4].trim() : 'N/A',
+                        quantity: parseInt(p[5] ? p[5].trim() : 1) || 1,
+                        description: p[6] ? p[6].trim() : '',
+                        status: 'Pending Warehouse',
+                        timestamps: { crmAdded: Date.now(), warehouseMoved: null, pdiCompleted: null, dispatched: null },
+                        pdiDetails: null, dispatchDetails: null, extraRemarks: []
+                    });
+                    added++;
+                }
+            }
+            saveDb(); refreshAllViews();
+            showToast(`Bulk Upload: ${added} Tickets Added. ${skipped} Skipped.`);
+        }
+
+        function exportCrmCSV() {
+            let csv = 'Ticket ID,Customer Name,Shed,Destination,"Item Code(s)",Quantity,Live Status,Added Date\n';
+            db.forEach(t => {
+                const d = t.timestamps?.crmAdded ? new Date(t.timestamps.crmAdded).toLocaleDateString('en-IN') : 'N/A';
+                const escapedItemCode = `"${(t.itemCode||'').replace(/"/g, '""')}"`;
+                csv += `${t.ticketId},${t.customerName||''},${t.shed||''},${t.destination||''},${escapedItemCode},${t.quantity||0},${t.status||''},${d}\n`;
+            });
+            triggerDownload(csv, `CRM_Export_${new Date().getTime()}.csv`);
+        }
+
+        function triggerDownload(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        // --- 3. WAREHOUSING TEAM LOGIC ---
+        function renderWarehouseTables() {
+            const pendingBody = document.getElementById('warehousePendingBody');
+            const dispatchBody = document.getElementById('warehouseDispatchBody');
+            const historyBody = document.getElementById('warehouseHistoryBody');
+            if(!pendingBody || !dispatchBody || !historyBody) return;
+
+            const filter = document.getElementById('warehouseShedFilter').value;
+            
+            pendingBody.innerHTML = ''; dispatchBody.innerHTML = ''; historyBody.innerHTML = '';
+            
+            let filteredDb = filter === 'ALL' ? db : db.filter(x => x.shed === filter);
+            
+            const pendingMove = filteredDb.filter(x => x.status === 'Pending Warehouse');
+            const pendingDisp = filteredDb.filter(x => x.status === 'Inspection Complete');
+            const history = filteredDb.filter(x => x.status === 'Dispatched');
+
+            // 1. Pending Move
+            if(pendingMove.length === 0) pendingBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No pending movements.</td></tr>';
+            pendingMove.forEach(item => {
+                pendingBody.innerHTML += `<tr>
+                    <td>${ticketLink(item.ticketId)}</td><td>${item.customerName || 'N/A'}</td><td><span class="badge badge-pending">Shed ${item.shed || '?'}</span></td>
+                    <td>${formatItems(item.itemCode, item.ticketId)}</td><td>${item.quantity || 0}</td>
+                    <td style="font-size:0.8rem;">${item.timestamps?.crmAdded ? new Date(item.timestamps.crmAdded).toLocaleString('en-IN') : 'N/A'}</td>
+                    <td style="display:flex; gap:8px;">
+                        <button class="btn btn-primary btn-small" onclick="markReadyPdi('${item.ticketId}')">Mark Moved</button>
+                        <button class="btn-icon" onclick="openRemarkModal('${item.ticketId}')" title="Add Remark">💬</button>
+                    </td>
+                </tr>`;
+            });
+
+            // 2. Pending Dispatch
+            if(pendingDisp.length === 0) dispatchBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No completed inspections waiting.</td></tr>';
+            pendingDisp.forEach(item => {
+                dispatchBody.innerHTML += `<tr>
+                    <td>${ticketLink(item.ticketId)}</td><td>${item.customerName || 'N/A'}</td><td>${item.shed || 'N/A'}</td>
+                    <td>${formatItems(item.itemCode, item.ticketId)}</td>
+                    <td style="color:var(--success); font-weight:bold;">${item.pdiDetails?.okay || 0} OK</td>
+                    <td style="font-size:0.8rem;">${item.timestamps?.pdiCompleted ? new Date(item.timestamps.pdiCompleted).toLocaleString('en-IN') : 'N/A'}</td>
+                    <td style="display:flex; gap:8px;">
+                        <button class="btn btn-warning btn-small" style="background:var(--warning); color:#fff; border:none;" onclick="openDispatchModal('${item.ticketId}')">Dispatch Done</button>
+                        <button class="btn-icon" onclick="openRemarkModal('${item.ticketId}')" title="Add Remark">💬</button>
+                    </td>
+                </tr>`;
+            });
+
+            // 3. Dispatch History
+            if(history.length === 0) historyBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No dispatch history found.</td></tr>';
+            history.forEach(item => {
+                historyBody.innerHTML += `<tr>
+                    <td>${ticketLink(item.ticketId)}</td><td>${item.customerName || 'N/A'}</td><td>${item.shed || 'N/A'}</td>
+                    <td>${item.dispatchDetails?.foNo || '-'}</td><td>${item.dispatchDetails?.vehicleNo || '-'}</td>
+                    <td style="font-size:0.8rem;">${item.timestamps?.dispatched ? new Date(item.timestamps.dispatched).toLocaleString('en-IN') : 'N/A'}</td>
+                    <td><button class="btn-icon" onclick="openRemarkModal('${item.ticketId}')" title="Add Remark">💬</button></td>
+                </tr>`;
+            });
+        }
+
+        function markReadyPdi(ticketId) {
+            const idx = db.findIndex(x => x.ticketId === ticketId);
+            if(idx > -1) {
+                db[idx].status = 'Ready for PDI';
+                if (!db[idx].timestamps) db[idx].timestamps = {}; 
+                db[idx].timestamps.warehouseMoved = Date.now();
+                saveDb(); showToast(`✅ Ticket ${ticketId} placed in PDI Zone.`); refreshAllViews();
+            }
+        }
+
+        function openDispatchModal(ticketId) {
+            document.getElementById('dispTicketId').value = ticketId;
+            document.getElementById('dispTicketLabel').innerText = ticketId;
+            document.getElementById('dispFO').value = '';
+            document.getElementById('dispLoad').value = '';
+            document.getElementById('dispVehicle').value = '';
+            document.getElementById('dispatchModal').style.display = 'flex';
+        }
+
+        function submitDispatch(e) {
+            e.preventDefault();
+            const ticketId = document.getElementById('dispTicketId').value;
+            const idx = db.findIndex(x => x.ticketId === ticketId);
+            if(idx > -1) {
+                db[idx].status = 'Dispatched';
+                if (!db[idx].timestamps) db[idx].timestamps = {};
+                db[idx].timestamps.dispatched = Date.now();
+                db[idx].dispatchDetails = {
+                    foNo: document.getElementById('dispFO').value.trim() || 'N/A',
+                    loadNo: document.getElementById('dispLoad').value.trim() || 'N/A',
+                    vehicleNo: document.getElementById('dispVehicle').value.trim() || 'N/A'
+                };
+                saveDb(); showToast(`🚚 Ticket ${ticketId} Dispatch Logged!`);
+                closeModal('dispatchModal'); refreshAllViews();
+            }
+        }
+
+        // --- 4. PDI INSPECTION LOGIC ---
+        function handlePdiPhoto(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            if(file.size > 2 * 1024 * 1024) {
+                showToast("⚠️ Image is too large. Please select an image under 2MB.", true);
+                event.target.value = ''; return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('pdiPhotoBase64').value = e.target.result;
+                document.getElementById('pdiPhotoPreview').src = e.target.result;
+                document.getElementById('pdiPhotoPreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderPdiTables() {
+            const pendingBody = document.getElementById('pdiPendingBody');
+            const historyBody = document.getElementById('pdiHistoryBody');
+            if(!pendingBody || !historyBody) return;
+
+            pendingBody.innerHTML = ''; historyBody.innerHTML = '';
+            
+            const pending = db.filter(x => x.status === 'Ready for PDI');
+            const history = db.filter(x => ['Inspection Complete','Dispatched'].includes(x.status));
+
+            if(pending.length === 0) pendingBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No tickets in PDI queue.</td></tr>';
+            pending.forEach(item => {
+                const waited = item.timestamps?.warehouseMoved ? formatDuration(Date.now() - item.timestamps.warehouseMoved) : 'N/A';
+                pendingBody.innerHTML += `<tr>
+                    <td>${ticketLink(item.ticketId)}</td><td>${item.customerName || 'N/A'}</td><td>${item.shed || 'N/A'}</td>
+                    <td>${formatItems(item.itemCode, item.ticketId)}</td><td>${item.quantity || 0}</td><td style="color:var(--warning); font-weight:600;">${waited}</td>
+                    <td style="display:flex; gap:8px;">
+                        <button class="btn btn-outline btn-small" onclick="startPdi('${item.ticketId}')">Inspect</button>
+                        <button class="btn-icon" onclick="openRemarkModal('${item.ticketId}')" title="Add Remark">💬</button>
+                    </td>
+                </tr>`;
+            });
+
+            if(history.length === 0) historyBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No inspection history.</td></tr>';
+            history.forEach(item => {
+                historyBody.innerHTML += `<tr>
+                    <td>${ticketLink(item.ticketId)}</td><td>${formatItems(item.itemCode, item.ticketId)}</td><td>${item.pdiDetails?.supervisor || 'N/A'}</td>
+                    <td style="color:var(--success); font-weight:bold;">${item.pdiDetails?.okay || 0}</td>
+                    <td style="color:${(item.pdiDetails?.damage || 0) > 0 ? 'var(--danger)' : 'inherit'}">${item.pdiDetails?.damage || 0}</td>
+                    <td style="font-size:0.8rem;">${item.timestamps?.pdiCompleted ? new Date(item.timestamps.pdiCompleted).toLocaleString('en-IN') : 'N/A'}</td>
+                    <td><button class="btn-icon" onclick="openRemarkModal('${item.ticketId}')" title="Add Remark">💬</button></td>
+                </tr>`;
+            });
+        }
+
+        function startPdi(ticketId) {
+            const item = db.find(x => x.ticketId === ticketId);
+            if(!item) return;
+            
+            document.getElementById('pdiActiveTicketId').value = item.ticketId;
+            document.getElementById('pdiActiveTicketLabel').innerText = `- ${item.ticketId} (${item.customerName || 'N/A'})`;
+            
+            document.getElementById('pdiForm').reset();
+            document.getElementById('pdiTotal').value = item.quantity || 1;
+            document.getElementById('pdiPhotoBase64').value = '';
+            document.getElementById('pdiPhotoPreview').src = '';
+            document.getElementById('pdiPhotoPreview').style.display = 'none';
+            calculatePdi();
+            
+            document.getElementById('pdiFormCard').style.display = 'block';
+            document.getElementById('pdiFormCard').scrollIntoView({behavior: "smooth"});
+        }
+
+        function cancelPdiForm() { document.getElementById('pdiFormCard').style.display = 'none'; }
+
+        function calculatePdi() {
+            const t = parseInt(document.getElementById('pdiTotal').value) || 0;
+            const d = parseInt(document.getElementById('pdiDamage').value) || 0;
+            if(d > t) {
+                showToast('⚠️ Defect count cannot exceed total!', true);
+                document.getElementById('pdiDamage').value = t;
+                document.getElementById('pdiOkay').value = 0;
+            } else { document.getElementById('pdiOkay').value = t - d; }
+        }
+
+        function submitPdi(e) {
+            e.preventDefault();
+            const ticketId = document.getElementById('pdiActiveTicketId').value;
+            const idx = db.findIndex(x => x.ticketId === ticketId);
+            
+            if(idx > -1) {
+                db[idx].status = 'Inspection Complete';
+                if (!db[idx].timestamps) db[idx].timestamps = {};
+                db[idx].timestamps.pdiCompleted = Date.now();
+                db[idx].pdiDetails = {
+                    supervisor: document.getElementById('pdiSupervisor').value,
+                    total: document.getElementById('pdiTotal').value,
+                    damage: document.getElementById('pdiDamage').value,
+                    okay: document.getElementById('pdiOkay').value,
+                    remarks: document.getElementById('pdiRemarks').value || 'No remarks provided.',
+                    photo: document.getElementById('pdiPhotoBase64').value || null
+                };
+                
+                try {
+                    saveDb(); 
+                    showToast(`✅ PDI Completed for Ticket ${ticketId}`);
+                    document.getElementById('pdiFormCard').style.display = 'none'; 
+                    refreshAllViews();
+                } catch(err) {
+                    showToast("⚠️ Storage error. If photo attached, it may be too large.", true);
+                }
+            }
+        }
+
+        // --- 5. ADMIN DASHBOARD LOGIC (Pure HTML Analytics Engine) ---
+        function formatDuration(ms) {
+            if(!ms || ms < 0) return 'N/A';
+            const mins = Math.floor(ms / 60000);
+            const hrs = Math.floor(mins / 60);
+            if(hrs > 0) return `${hrs}h ${mins % 60}m`;
+            return `${mins}m`;
+        }
+
+        function renderAdminDashboard() {
+            const total = db.length;
+            const pWarehouse = db.filter(x => x.status === 'Pending Warehouse').length;
+            const pPDI = db.filter(x => x.status === 'Ready for PDI').length;
+            const pDisp = db.filter(x => x.status === 'Inspection Complete').length;
+            const dispatched = db.filter(x => x.status === 'Dispatched').length;
+            const completedInspections = db.filter(x => ['Inspection Complete','Dispatched'].includes(x.status));
+            
+            let totalDefects = 0, totalSamples = 0, totalTime = 0;
+            const shedSuccessMap = { 'S':0, 'P':0, 'T':0, 'O':0, 'SS (Padgha)':0 };
+            const shedTotalMap = { 'S':0, 'P':0, 'T':0, 'O':0, 'SS (Padgha)':0 };
+
+            completedInspections.forEach(c => {
+                totalSamples += parseInt(c.pdiDetails?.total || 0);
+                totalDefects += parseInt(c.pdiDetails?.damage || 0);
+                const tComplete = c.timestamps?.pdiCompleted || 0;
+                const tAdded = c.timestamps?.crmAdded || 0;
+                if(tComplete && tAdded) totalTime += (tComplete - tAdded);
+                
+                if(c.shed && shedTotalMap[c.shed] !== undefined) {
+                    shedTotalMap[c.shed]++;
+                    if(parseInt(c.pdiDetails?.damage || 0) === 0) shedSuccessMap[c.shed]++;
+                }
+            });
+            
+            const defRate = totalSamples > 0 ? ((totalDefects/totalSamples)*100).toFixed(1) + '%' : '0%';
+            const avgTime = completedInspections.length > 0 ? formatDuration(totalTime / completedInspections.length) : '0m';
+
+            document.getElementById('dashTotal').innerText = total;
+            document.getElementById('dashPendingAll').innerText = (pWarehouse + pPDI + pDisp);
+            document.getElementById('dashDefectRate').innerText = defRate;
+            document.getElementById('dashDispatched').innerText = dispatched;
+            document.getElementById('dashAvgTime').innerText = avgTime;
+
+            // 1. Render PURE HTML Funnel
+            const funnelContainer = document.getElementById('htmlFunnelContainer');
+            if(funnelContainer) {
+                if(total === 0) {
+                    funnelContainer.innerHTML = `<div style="width:100%; text-align:center; padding: 20px; color:var(--text-muted); font-size:0.95rem; background:var(--background); border-radius:8px;">No tickets available yet. Add a ticket in CRM to start tracking analytics.</div>`;
+                } else {
+                    const pctWH = ((pWarehouse / total) * 100).toFixed(1);
+                    const pctPDI = ((pPDI / total) * 100).toFixed(1);
+                    const pctDisp = ((pDisp / total) * 100).toFixed(1);
+                    const pctDone = ((dispatched / total) * 100).toFixed(1);
+
+                    funnelContainer.innerHTML = `
+                        <div class="funnel-bar">
+                            <div class="funnel-segment" style="width:${pctWH}%; background:#f59e0b;" title="Pending WH: ${pctWH}%"></div>
+                            <div class="funnel-segment" style="width:${pctPDI}%; background:#0ea5e9;" title="Ready PDI: ${pctPDI}%"></div>
+                            <div class="funnel-segment" style="width:${pctDisp}%; background:#8b5cf6;" title="Inspected: ${pctDisp}%"></div>
+                            <div class="funnel-segment" style="width:${pctDone}%; background:#10b981;" title="Dispatched: ${pctDone}%"></div>
+                        </div>
+                        <div class="funnel-legend">
+                            <div class="funnel-legend-item">
+                                <div class="funnel-legend-label"><span class="funnel-dot" style="background:#f59e0b;"></span> Pending Warehouse</div>
+                                <div><strong>${pWarehouse}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">(${pctWH}%)</span></div>
+                            </div>
+                            <div class="funnel-legend-item">
+                                <div class="funnel-legend-label"><span class="funnel-dot" style="background:#0ea5e9;"></span> Ready for PDI</div>
+                                <div><strong>${pPDI}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">(${pctPDI}%)</span></div>
+                            </div>
+                            <div class="funnel-legend-item">
+                                <div class="funnel-legend-label"><span class="funnel-dot" style="background:#8b5cf6;"></span> Inspected (Wait Disp.)</div>
+                                <div><strong>${pDisp}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">(${pctDisp}%)</span></div>
+                            </div>
+                            <div class="funnel-legend-item">
+                                <div class="funnel-legend-label"><span class="funnel-dot" style="background:#10b981;"></span> Dispatched</div>
+                                <div><strong>${dispatched}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">(${pctDone}%)</span></div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // 2. Render Shed Summary Table
+            const adminFilterElement = document.getElementById('adminShedFilter');
+            const filterShed = adminFilterElement ? adminFilterElement.value : 'ALL';
+            const sheds = filterShed === 'ALL' ? ['S', 'P', 'T', 'O', 'SS (Padgha)'] : [filterShed];
+            
+            const tbodyShed = document.getElementById('shedTableBody');
+            const tfootShed = document.getElementById('shedTableFoot');
+            if(tbodyShed && tfootShed) {
+                tbodyShed.innerHTML = '';
+                tfootShed.innerHTML = '';
+
+                let gTotal=0, gWH=0, gPDI=0, gInsp=0, gDisp=0, gOk=0, gDef=0;
+
+                sheds.forEach(s => {
+                    const sItems = db.filter(x => x.shed === s);
+                    const sTotal = sItems.length;
+                    const sWH = sItems.filter(x => x.status === 'Pending Warehouse').length;
+                    const sPDI = sItems.filter(x => x.status === 'Ready for PDI').length;
+                    const sInsp = sItems.filter(x => x.status === 'Inspection Complete').length;
+                    const sDisp = sItems.filter(x => x.status === 'Dispatched').length;
+
+                    let sOk = 0, sDef = 0;
+                    sItems.forEach(x => {
+                        if(x.pdiDetails) {
+                            sOk += parseInt(x.pdiDetails.okay || 0);
+                            sDef += parseInt(x.pdiDetails.damage || 0);
+                        }
+                    });
+
+                    gTotal += sTotal; gWH += sWH; gPDI += sPDI; gInsp += sInsp; gDisp += sDisp; gOk += sOk; gDef += sDef;
+
+                    const passRate = (sOk + sDef) > 0 ? ((sOk / (sOk + sDef)) * 100).toFixed(0) + '%' : 'N/A';
+
+                    tbodyShed.innerHTML += `<tr>
+                        <td><strong>Shed ${s}</strong></td>
+                        <td>${sTotal}</td>
+                        <td style="color:#b45309;">${sWH}</td>
+                        <td style="color:#0369a1;">${sPDI}</td>
+                        <td style="color:#7e22ce;">${sInsp}</td>
+                        <td style="color:#047857;">${sDisp}</td>
+                        <td style="color:var(--success); font-weight:bold;">${sOk}</td>
+                        <td style="color:var(--danger); font-weight:bold;">${sDef}</td>
+                        <td><span class="badge badge-ready">${passRate}</span></td>
+                    </tr>`;
+                });
+
+                if (filterShed === 'ALL') {
+                    const grandPassRate = (gOk + gDef) > 0 ? ((gOk / (gOk + gDef)) * 100).toFixed(0) + '%' : 'N/A';
+                    tfootShed.innerHTML = `<tr>
+                        <td>TOTAL</td>
+                        <td>${gTotal}</td>
+                        <td>${gWH}</td>
+                        <td>${gPDI}</td>
+                        <td>${gInsp}</td>
+                        <td>${gDisp}</td>
+                        <td style="color:var(--success);">${gOk}</td>
+                        <td style="color:var(--danger);">${gDef}</td>
+                        <td>${grandPassRate}</td>
+                    </tr>`;
+                }
+            }
+
+            // Recent Activity Feed
+            const activityBody = document.getElementById('adminActivityBody');
+            if(activityBody) {
+                activityBody.innerHTML = '';
+                
+                const sortedByActivity = [...db].sort((a,b) => {
+                    const getLatest = (t) => Math.max(t.timestamps?.crmAdded||0, t.timestamps?.warehouseMoved||0, t.timestamps?.pdiCompleted||0, t.timestamps?.dispatched||0);
+                    return getLatest(b) - getLatest(a);
+                }).slice(0, 10); 
+
+                sortedByActivity.forEach(item => {
+                    let timeStr, actionStr;
+                    if(item.status === 'Dispatched') { timeStr = item.timestamps?.dispatched; actionStr = "Dispatched Route Assigned"; }
+                    else if(item.status === 'Inspection Complete') { timeStr = item.timestamps?.pdiCompleted; actionStr = "PDI Inspected"; }
+                    else if(item.status === 'Ready for PDI') { timeStr = item.timestamps?.warehouseMoved; actionStr = "Moved to PDI Zone"; }
+                    else { timeStr = item.timestamps?.crmAdded; actionStr = "Ticket Created via CRM"; }
+                    
+                    let badge = 'badge-pending';
+                    if(item.status === 'Ready for PDI') badge = 'badge-ready';
+                    if(item.status === 'Inspection Complete') badge = 'badge-done';
+                    if(item.status === 'Dispatched') badge = 'badge-dispatch';
+
+                    const displayTime = timeStr ? new Date(timeStr).toLocaleString('en-IN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : 'N/A';
+
+                    activityBody.innerHTML += `<tr>
+                        <td style="font-size:0.8rem; color:var(--text-muted);">${displayTime}</td>
+                        <td>${ticketLink(item.ticketId)}</td>
+                        <td>${item.shed || 'N/A'}</td>
+                        <td>${actionStr}</td>
+                        <td><span class="badge ${badge}">${item.status || 'Unknown'}</span></td>
+                    </tr>`;
+                });
+            }
+
+            // Master Table
+            const tbody = document.getElementById('adminTableBody');
+            if(tbody) {
+                tbody.innerHTML = '';
+                if(db.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">No records.</td></tr>';
+                    return;
+                }
+                
+                db.forEach(item => {
+                    let badge = 'badge-pending';
+                    if(item.status === 'Ready for PDI') badge = 'badge-ready';
+                    if(item.status === 'Inspection Complete') badge = 'badge-done';
+                    if(item.status === 'Dispatched') badge = 'badge-dispatch';
+                    
+                    const cTime = ['Inspection Complete', 'Dispatched'].includes(item.status) && item.timestamps?.pdiCompleted && item.timestamps?.crmAdded
+                        ? formatDuration(item.timestamps.pdiCompleted - item.timestamps.crmAdded) : 'WIP';
+
+                    tbody.innerHTML += `<tr>
+                        <td>${ticketLink(item.ticketId)}</td><td>${item.customerName || 'N/A'}</td><td>${item.shed || 'N/A'}</td>
+                        <td>${formatItems(item.itemCode, item.ticketId)}</td><td>${item.quantity || 0}</td>
+                        <td style="color:var(--success); font-weight:bold;">${item.pdiDetails ? item.pdiDetails.okay : '-'}</td>
+                        <td style="color:var(--danger); font-weight:bold;">${item.pdiDetails ? item.pdiDetails.damage : '-'}</td>
+                        <td><span class="badge ${badge}">${item.status || 'Unknown'}</span></td>
+                        <td>${cTime}</td>
+                        <td style="display:flex; gap:8px;">
+                            <button class="btn-icon" onclick="viewUniversalTicket('${item.ticketId}')" title="View Audit Details">👁️</button>
+                            <button class="btn-icon" onclick="openRemarkModal('${item.ticketId}')" title="Add Remark">💬</button>
+                        </td>
+                    </tr>`;
+                });
+            }
+        }
+
+        // CSV Export Admin
+        function exportAdminCSV() {
+            let csv = 'Ticket ID,Customer Name,Shed,Destination,"Item Code(s)",Expected Qty,Status,Inspector,Total Inspected,Okay,Damage,Freight Order,Vehicle,CRM Time,Dispatch Time\n';
+            db.forEach(t => {
+                const crmT = t.timestamps?.crmAdded ? new Date(t.timestamps.crmAdded).toLocaleString() : '';
+                const dspT = t.timestamps?.dispatched ? new Date(t.timestamps.dispatched).toLocaleString() : '';
+                const escapedItemCode = `"${(t.itemCode||'').replace(/"/g, '""')}"`;
+                csv += `${t.ticketId},${t.customerName||''},${t.shed||''},${t.destination||''},${escapedItemCode},${t.quantity||0},${t.status||''},${t.pdiDetails?.supervisor||''},${t.pdiDetails?.total||''},${t.pdiDetails?.okay||''},${t.pdiDetails?.damage||''},${t.dispatchDetails?.foNo||''},${t.dispatchDetails?.vehicleNo||''},${crmT},${dspT}\n`;
+            });
+            triggerDownload(csv, `Godrej_WMS_Master_${new Date().getTime()}.csv`);
+        }
+
+        function printAllReports() {
+            const completed = db.filter(x => ['Inspection Complete','Dispatched'].includes(x.status));
+            if(completed.length === 0) { showToast('No completed reports to print.', true); return; }
+            
+            let htmlStr = `<html><head><title>Batch Inspection Report</title><style>body{font-family:sans-serif; padding:20px;} .page-break{page-break-after:always; margin-bottom:50px; padding-bottom:50px; border-bottom:3px dashed #ccc;}</style></head><body>`;
+            completed.forEach((item, index) => {
+                htmlStr += generateReportHTML(item, false);
+                if(index < completed.length - 1) htmlStr += '<div class="page-break"></div>';
+            });
+            htmlStr += `</body></html>`;
+            
+            const printWin = window.open('', '_blank');
+            printWin.document.write(htmlStr);
+            printWin.document.close();
+            setTimeout(() => { printWin.print(); }, 1000);
+        }
+
+        // HTML Generator for Print
+        function generateReportHTML(item, injectStyles = true) {
+            const styles = injectStyles ? `<style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; max-width: 900px; margin: 0 auto;}
+                .header { border-bottom: 3px solid #2563eb; padding-bottom: 15px; margin-bottom: 25px; display:flex; justify-content:space-between; align-items:flex-end;}
+                .title { font-size: 22px; font-weight: bold; text-align: center; background: #f1f5f9; padding: 12px; border: 1px solid #cbd5e1; margin-bottom: 25px; border-radius:6px;}
+                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+                .box { border: 1px solid #e2e8f0; padding: 18px; border-radius:8px; word-break: break-all;}
+                table { width: 100%; border-collapse: collapse; margin: 25px 0; }
+                th, td { border: 1px solid #cbd5e1; padding: 12px; text-align: center; }
+                th { background: #2563eb; color: white; }
+                .remark { background:#f8fafc; border-left:3px solid #2563eb; padding:10px; margin-bottom:10px; font-size:14px; }
+                @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } .header { flex-direction: column; align-items:flex-start; gap:10px;} }
+            </style>` : '';
+            
+            const photoBlock = item.pdiDetails?.photo ? `<div class="box" style="margin-top:20px;"><strong>Inspection Evidence:</strong><br><img src="${item.pdiDetails.photo}" style="max-height:250px; max-width: 100%; margin-top:10px; border-radius:4px;"></div>` : '';
+            const disp = item.dispatchDetails ? `<div class="box" style="margin-top:20px;"><strong>Dispatch Details:</strong><br>Freight Order: ${item.dispatchDetails.foNo || 'N/A'} | Load: ${item.dispatchDetails.loadNo || 'N/A'} | Vehicle: ${item.dispatchDetails.vehicleNo || 'N/A'}</div>` : '';
+            
+            let extraRmks = '';
+            if(item.extraRemarks && Array.isArray(item.extraRemarks) && item.extraRemarks.length > 0) {
+                extraRmks = `<div class="box" style="margin-top:20px;"><strong>Appended Remarks Log:</strong><br>`;
+                item.extraRemarks.forEach(r => {
+                    const rDate = new Date(r.timestamp).toLocaleString();
+                    extraRmks += `<div class="remark"><strong>[${r.role} Panel] ${rDate}:</strong><br>${r.text}</div>`;
+                });
+                extraRmks += `</div>`;
+            }
+
+            const pdiTime = item.timestamps?.pdiCompleted ? new Date(item.timestamps.pdiCompleted).toLocaleString() : 'N/A';
+            const cycleTime = (item.timestamps?.pdiCompleted && item.timestamps?.crmAdded) ? formatDuration(item.timestamps.pdiCompleted - item.timestamps.crmAdded) : 'N/A';
+
+            return `
+                ${styles}
+                <div class="header">
+                    <div><h2 style="color:#2563eb; margin:0;">Godrej & Boyce - Saidhara NDC</h2><p style="margin:5px 0 0 0; color:#64748b;">Official Quality Assurance & Dispatch Log</p></div>
+                    <div style="text-align:right; font-size:12px; color:#64748b;">Generated: ${new Date().toLocaleString()}</div>
+                </div>
+                <div class="title">TICKET ID: ${item.ticketId}</div>
+                <div class="grid">
+                    <div class="box">
+                        <strong>Customer:</strong> ${item.customerName || 'N/A'}<br>
+                        <strong>Item Code(s):</strong> ${item.itemCode || 'N/A'}<br>
+                        <strong>Destination:</strong> ${item.destination || 'N/A'}<br>
+                        <strong>Shed:</strong> ${item.shed || 'N/A'}
+                    </div>
+                    <div class="box">
+                        <strong>Inspector:</strong> ${item.pdiDetails?.supervisor || 'N/A'}<br>
+                        <strong>Current Status:</strong> ${item.status || 'Unknown'}<br>
+                        <strong>PDI Cleared:</strong> ${pdiTime}<br>
+                        <strong>Cycle Time:</strong> ${cycleTime}
+                    </div>
+                </div>
+                <table>
+                    <tr><th>Total Sample Checked</th><th>Approved (Okay)</th><th>Defective (Damage)</th></tr>
+                    <tr>
+                        <td style="font-size:18px;">${item.pdiDetails?.total || 0}</td>
+                        <td style="color:#10b981; font-weight:bold; font-size:18px;">${item.pdiDetails?.okay || 0}</td>
+                        <td style="color:#e11d48; font-weight:bold; font-size:18px;">${item.pdiDetails?.damage || 0}</td>
+                    </tr>
+                </table>
+                <div class="box"><strong>Inspector Remarks / Notes:</strong><p style="margin-top:8px; white-space: pre-wrap;">${item.pdiDetails?.remarks || 'None'}</p></div>
+                ${extraRmks}
+                ${photoBlock}
+                ${disp}
+                <div style="margin-top: 60px; display: flex; justify-content: space-between;">
+                    <div style="border-top:1px solid #000; width:45%; text-align:center; padding-top:8px; font-weight:bold;">Inspector Signature</div>
+                    <div style="border-top:1px solid #000; width:45%; text-align:center; padding-top:8px; font-weight:bold;">Logistics Auth. Signature</div>
+                </div>
+            `;
+        }
+
+        // Init App
+        window.onload = () => { renderCrmTable(); };
+    </script>
+</body>
+</html>
