@@ -1,69 +1,48 @@
-import { useEffect, useMemo, useState } from 'react'
-import { DESTINATION_COMPANIES, INBOUND_SOURCES, SHEDS, TICKET_TYPES } from '../config.js'
-import { createTicket, subscribeLogs, subscribeTickets } from '../services.js'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { DESTINATION_COMPANIES, INBOUND_SOURCES, SHEDS, STATUS_LABELS, STATUSES, TICKET_TYPES } from '../config.js'
+import { createTicket, subscribeLogs, subscribeTickets, updateTicket } from '../services.js'
 import { useAuth } from '../auth.jsx'
 import TicketDetail, { TicketLink } from '../components/TicketDetail.jsx'
+import { downloadText, parseCsv, printTicketsPdf, templateToCsv, ticketsToCsv, validateTicketRow } from '../ticketExport.js'
 
-const inboundFields = ['ticketId', 'customerName', 'source', 'destinationCompany', 'destinationBranch', 'freightOrderNo', 'loadNumber', 'vehicleNumber', 'shed', 'itemCode', 'itemDescription', 'qty', 'prdDate']
-const outboundFields = ['ticketId', 'customerName', 'destinationBranch', 'warehouseOrderNumber', 'freightOrderNo', 'position', 'shed', 'itemCode', 'itemDescription', 'qty', 'prdDate']
-const labels = { ticketId: 'Ticket ID', customerName: 'Customer Name', source: 'Source', destinationCompany: 'Destination Company', destinationBranch: 'Destination Branch', freightOrderNo: 'Freight Order No.', loadNumber: 'Load Number', vehicleNumber: 'Vehicle Number', shed: 'Shed', itemCode: 'Item Code', itemDescription: 'Item Description', qty: 'Qty', prdDate: 'PRD Date', warehouseOrderNumber: 'Warehouse Order Number', position: 'Position' }
-const blank = type => Object.fromEntries((type === TICKET_TYPES.INBOUND ? inboundFields : outboundFields).map(key => [key, '']))
+const inboundFields=['ticketId','customerName','source','destinationCompany','destinationBranch','freightOrderNo','loadNumber','vehicleNumber','shed','itemCode','itemDescription','qty','prdDate']
+const outboundFields=['ticketId','customerName','destinationBranch','warehouseOrderNumber','freightOrderNo','loadNumber','vehicleNumber','shed','itemCode','itemDescription','qty','prdDate','position']
+const labels={ticketId:'Ticket ID',customerName:'Customer Name',source:'Source',destinationCompany:'Destination Company',destinationBranch:'Destination Branch',freightOrderNo:'Freight Order No.',loadNumber:'Load Number',vehicleNumber:'Vehicle Number',shed:'Shed',itemCode:'Item Code',itemDescription:'Item Description',qty:'Qty',prdDate:'PRD Date',warehouseOrderNumber:'Warehouse Order Number',position:'Position'}
+const blank=type=>Object.fromEntries((type===TICKET_TYPES.INBOUND?inboundFields:outboundFields).map(key=>[key,'']))
+const timeValue=value=>value?.toMillis?value.toMillis():value?new Date(value).getTime():0
+const formatTime=value=>timeValue(value)?new Date(timeValue(value)).toLocaleString():'—'
 
-function Field({ name, value, onChange }) {
-  if (name === 'source') return <label>{labels[name]}<select value={value} onChange={onChange} required><option value="">Select source</option>{INBOUND_SOURCES.map(item => <option key={item}>{item}</option>)}</select></label>
-  if (name === 'destinationCompany') return <label>{labels[name]}<select value={value} onChange={onChange} required><option value="">Select company</option>{DESTINATION_COMPANIES.map(item => <option key={item}>{item}</option>)}</select></label>
-  if (name === 'shed') return <label>{labels[name]}<select value={value} onChange={onChange} required><option value="">Select shed</option>{SHEDS.map(item => <option key={item}>{item}</option>)}</select></label>
-  return <label>{labels[name]}<input type={name === 'qty' ? 'number' : name === 'prdDate' ? 'date' : 'text'} min={name === 'qty' ? 0 : undefined} value={value} onChange={onChange} required /></label>
+function Field({name,value,onChange}){
+ if(name==='source') return <label>{labels[name]}<select value={value} onChange={onChange} required><option value="">Select source</option>{INBOUND_SOURCES.map(item=><option key={item}>{item}</option>)}</select></label>
+ if(name==='destinationCompany') return <label>{labels[name]}<select value={value} onChange={onChange} required><option value="">Select company</option>{DESTINATION_COMPANIES.map(item=><option key={item}>{item}</option>)}</select></label>
+ if(name==='shed') return <label>{labels[name]}<select value={value} onChange={onChange} required><option value="">Select shed</option>{SHEDS.map(item=><option key={item}>{item}</option>)}</select></label>
+ return <label>{labels[name]}<input type={name==='qty'?'number':name==='prdDate'?'date':'text'} min={name==='qty'?0:undefined} value={value||''} onChange={onChange} required /></label>
 }
 
-function TicketTable({ tickets, onOpen }) {
-  return <div className="table-wrap"><table><thead><tr><th>Ticket</th><th>Type</th><th>Customer</th><th>Source / Company</th><th>Destination Branch</th><th>Qty</th><th>Status</th></tr></thead><tbody>{tickets.map(ticket => <tr key={ticket.id}><td><TicketLink ticket={ticket} onOpen={onOpen} /></td><td><span className={`badge ${ticket.ticketType}`}>{ticket.ticketType}</span></td><td>{ticket.customerName}</td><td>{ticket.source || ticket.destinationCompany || '—'}</td><td>{ticket.destinationBranch || '—'}</td><td>{ticket.qty}</td><td>{ticket.currentStatus || '—'}</td></tr>)}</tbody></table></div>
+function TicketTable({tickets,onOpen,onEdit}){return <div className="table-wrap"><table><thead><tr><th>Ticket</th><th>Type</th><th>Customer</th><th>Destination</th><th>Qty</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead><tbody>{tickets.map(ticket=><tr key={ticket.id}><td><TicketLink ticket={ticket} onOpen={onOpen}/></td><td><span className={`badge ${ticket.ticketType}`}>{ticket.ticketType}</span></td><td>{ticket.customerName}</td><td>{ticket.destinationBranch||ticket.destinationCompany||'—'}</td><td>{ticket.qty}</td><td>{STATUS_LABELS[ticket.currentStatus]||ticket.currentStatus||'—'}</td><td>{formatTime(ticket.updatedAt||ticket.createdAt)}</td><td><button className="table-action" onClick={()=>onEdit(ticket)}>Edit</button></td></tr>)}</tbody></table></div>}
+
+function HistoryFilters({tickets,logs,module,onOpen,onEdit}){
+ const [search,setSearch]=useState(''); const [status,setStatus]=useState('all'); const [action,setAction]=useState('all'); const [from,setFrom]=useState(''); const [to,setTo]=useState('')
+ const departmentLogs=useMemo(()=>logs.filter(log=>log.module===module||log.role===module),[logs,module])
+ const actions=useMemo(()=>[...new Set(departmentLogs.map(log=>log.action).filter(Boolean))].sort(),[departmentLogs])
+ const rows=useMemo(()=>tickets.filter(ticket=>departmentLogs.some(log=>log.ticketId===ticket.id)).filter(ticket=>{const hay=[ticket.ticketId,ticket.customerName,ticket.destinationBranch,ticket.itemCode].join(' ').toLowerCase(); if(search&&!hay.includes(search.toLowerCase())) return false; if(status!=='all'&&ticket.currentStatus!==status)return false; const activity=departmentLogs.filter(log=>log.ticketId===ticket.id); if(action!=='all'&&!activity.some(log=>log.action===action))return false; const latest=Math.max(...activity.map(log=>timeValue(log.createdAt)).filter(Boolean)); if(from&&latest<new Date(`${from}T00:00:00`).getTime())return false; if(to&&latest>new Date(`${to}T23:59:59`).getTime())return false; return true}),[tickets,departmentLogs,search,status,action,from,to])
+ return <><div className="filter-bar"><input placeholder="Search ticket, customer, branch, item…" value={search} onChange={e=>setSearch(e.target.value)}/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All statuses</option>{Object.entries(STATUS_LABELS).map(([key,label])=><option value={key} key={key}>{label}</option>)}</select><select value={action} onChange={e=>setAction(e.target.value)}><option value="all">All actions</option>{actions.map(item=><option key={item}>{item}</option>)}</select><label className="compact-field">From<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label className="compact-field">To<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label><button className="secondary" onClick={()=>{setSearch('');setStatus('all');setAction('all');setFrom('');setTo('')}}>Reset</button></div><div className="filter-result">Showing <strong>{rows.length}</strong> of {tickets.length} tickets</div><TicketTable tickets={rows} onOpen={onOpen} onEdit={onEdit}/></>
 }
 
-export default function CRM({ historyOnly = false, view = 'entry' }) {
-  const { profile } = useAuth()
-  const [type, setType] = useState(TICKET_TYPES.INBOUND)
-  const [form, setForm] = useState(blank(type))
-  const [otherSource, setOtherSource] = useState('')
-  const [otherDestination, setOtherDestination] = useState('')
-  const [tickets, setTickets] = useState([])
-  const [logs, setLogs] = useState([])
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [tab, setTab] = useState(historyOnly ? 'history' : view === 'log' ? 'log' : 'entry')
-  const [selected, setSelected] = useState(null)
-
-  useEffect(() => subscribeTickets(setTickets), [])
-  useEffect(() => subscribeLogs(setLogs), [])
-  useEffect(() => setTab(historyOnly ? 'history' : view === 'log' ? 'log' : 'entry'), [historyOnly, view])
-  useEffect(() => { setForm(blank(type)); setOtherSource(''); setOtherDestination('') }, [type])
-
-  const created = useMemo(() => new Set(logs.filter(log => log.module === 'crm' || log.role === 'crm').map(log => log.ticketId)), [logs])
-  const visible = historyOnly ? tickets.filter(ticket => created.has(ticket.id)) : tickets
-
-  async function submit(event) {
-    event.preventDefault(); setSaving(true); setMessage('')
-    try {
-      const payload = { ...form, ticketType: type, qty: Number(form.qty) }
-      if (type === TICKET_TYPES.INBOUND) {
-        payload.source = payload.source === 'Other' ? otherSource : payload.source
-        payload.destinationCompany = payload.destinationCompany === 'Other' ? otherDestination : payload.destinationCompany
-      }
-      await createTicket(payload, profile)
-      setForm(blank(type)); setOtherSource(''); setOtherDestination('')
-      setMessage('Ticket created and routed according to the active workflow.')
-    } catch (error) { setMessage(error.message) } finally { setSaving(false) }
-  }
-
-  const fields = type === TICKET_TYPES.INBOUND ? inboundFields : outboundFields
-
-  return <section className="page">
-    <div className="page-head"><div><div className="eyebrow">CRM PORTAL</div><h1>{historyOnly ? 'CRM History' : view === 'log' ? 'Master Ticket Log' : 'Ticket Entry & Live Tracking'}</h1><p className="muted">{historyOnly ? 'Tickets created or worked on by CRM with timestamped activity.' : view === 'log' ? 'Master view of tickets and their current workflow state.' : 'Create inbound or outbound tickets and monitor their current workflow state.'}</p></div></div>
-
-    {!historyOnly && <div className="tabs"><button className={tab === 'entry' ? 'tab active' : 'tab'} onClick={() => setTab('entry')}>Ticket Entry</button><button className={tab === 'log' ? 'tab active' : 'tab'} onClick={() => setTab('log')}>Master Ticket Log</button><button className={tab === 'history' ? 'tab active' : 'tab'} onClick={() => setTab('history')}>History</button></div>}
-
-    {tab === 'entry' && !historyOnly ? <><div className="type-switch"><button type="button" className={type === TICKET_TYPES.INBOUND ? 'type active inbound' : 'type'} onClick={() => setType(TICKET_TYPES.INBOUND)}>INBOUND TICKET</button><button type="button" className={type === TICKET_TYPES.OUTBOUND ? 'type active outbound' : 'type'} onClick={() => setType(TICKET_TYPES.OUTBOUND)}>OUTBOUND TICKET</button></div><div className="card"><div className="card-head"><div><h2>Add {type === 'inbound' ? 'Inbound' : 'Outbound'} Ticket</h2><p className="muted">Fields change automatically with ticket type.</p></div><span className="badge">{type.toUpperCase()}</span></div><form className="form-grid" onSubmit={submit}>{fields.map(name => <Field key={name} name={name} value={form[name]} onChange={event => setForm({ ...form, [name]: event.target.value })} />)}{type === TICKET_TYPES.INBOUND && form.source === 'Other' && <label>Other Source<input value={otherSource} onChange={event => setOtherSource(event.target.value)} required /></label>}{type === TICKET_TYPES.INBOUND && form.destinationCompany === 'Other' && <label>Other Destination Company<input value={otherDestination} onChange={event => setOtherDestination(event.target.value)} required /></label>}<div className="form-actions"><button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save & Route Ticket'}</button></div></form>{message && <div className="notice">{message}</div>}</div></> : <div className="card"><div className="card-head"><div><h2>{historyOnly ? 'CRM Activity History' : tab === 'history' ? 'CRM Activity History' : 'Master Log & Live Tracking'}</h2><span className="muted">{(historyOnly || tab === 'history' ? visible : tickets).length} tickets</span></div></div><TicketTable tickets={historyOnly || tab === 'history' ? visible : tickets} onOpen={setSelected} /></div>}
-
-    <TicketDetail ticket={selected} onClose={() => setSelected(null)} />
-  </section>
+export default function CRM({historyOnly=false,view='entry'}){
+ const {profile}=useAuth(); const [tickets,setTickets]=useState([]); const [logs,setLogs]=useState([]); const [type,setType]=useState(TICKET_TYPES.INBOUND); const [form,setForm]=useState(blank(type)); const [editing,setEditing]=useState(null); const [selected,setSelected]=useState(null); const [tab,setTab]=useState(historyOnly?'history':view==='log'?'log':'entry'); const [saving,setSaving]=useState(false); const [message,setMessage]=useState(''); const [importing,setImporting]=useState(false); const [importMessage,setImportMessage]=useState(''); const fileRef=useRef(null)
+ useEffect(()=>subscribeTickets(setTickets),[]); useEffect(()=>subscribeLogs(setLogs),[]); useEffect(()=>setTab(historyOnly?'history':view==='log'?'log':'entry'),[historyOnly,view]); useEffect(()=>{if(!editing)setForm(blank(type))},[type,editing])
+ const fields=type===TICKET_TYPES.INBOUND?inboundFields:outboundFields
+ const historyTickets=useMemo(()=>tickets.filter(ticket=>logs.some(log=>(log.module==='crm'||log.role==='crm')&&log.ticketId===ticket.id)),[tickets,logs])
+ function editTicket(ticket){setEditing(ticket);setType(ticket.ticketType);setForm({...blank(ticket.ticketType),...Object.fromEntries(Object.keys(blank(ticket.ticketType)).map(key=>[key,ticket[key]??'']))});setTab('entry');setMessage('Editing existing ticket. Save to record an audited change.')}
+ async function submit(event){event.preventDefault();setSaving(true);setMessage('');try{const payload={...form,ticketType:type,qty:Number(form.qty)};if(type===TICKET_TYPES.INBOUND){if(payload.source==='Other'&&!payload.sourceOther){} if(payload.destinationCompany==='Other'&&!payload.destinationCompanyOther){}} if(editing){const changes={...payload,previousStatus:editing.currentStatus};await updateTicket(editing.id,changes,profile,'crm_ticket_edited',{module:'crm',previousStatus:editing.currentStatus,newStatus:editing.currentStatus,details:`CRM edited ticket ${editing.ticketId}. Workflow status preserved.`,metadata:{editedFields:Object.keys(payload)}});setMessage('Ticket updated successfully. The edit has been added to the audit timeline.');setEditing(null)}else{await createTicket(payload,profile);setMessage('Ticket created and routed according to the active workflow.')}setForm(blank(type))}catch(error){setMessage(error.message)}finally{setSaving(false)}}
+ function importCsv(event){const file=event.target.files?.[0];if(!file)return;setImporting(true);setImportMessage('');const reader=new FileReader();reader.onload=async()=>{try{const rows=parseCsv(String(reader.result||''));if(!rows.length)throw new Error('No ticket rows were found in the CSV.');const errors=rows.map((row,index)=>validateTicketRow(row,index)).filter(Boolean);if(errors.length)throw new Error(errors.slice(0,8).join('\n'));let created=0;for(const row of rows){await createTicket({...row,qty:Number(row.qty)},profile);created++}setImportMessage(`${created} ticket(s) imported and routed successfully.`)}catch(error){setImportMessage(error.message)}finally{setImporting(false);event.target.value=''}};reader.readAsText(file)}
+ function exportCsv(){downloadText(`crm-saidhara-tickets-${new Date().toISOString().slice(0,10)}.csv`,ticketsToCsv(tickets))}
+ function exportPdf(){try{printTicketsPdf(tickets)}catch(error){setMessage(error.message)}}
+ return <section className="page"><div className="page-head"><div><div className="eyebrow">CRM PORTAL</div><h1>{historyOnly?'CRM History':editing?'Edit Ticket':view==='log'?'Master Ticket Log':'Ticket Entry & Live Tracking'}</h1><p className="muted">{historyOnly?'Search and audit every CRM ticket action.':editing?'Modify ticket data without changing its workflow position.':'Create, bulk import, edit, export and monitor tickets from one workspace.'}</p></div></div>
+ {!historyOnly&&<div className="tabs"><button className={tab==='entry'?'tab active':'tab'} onClick={()=>setTab('entry')}>Ticket Entry</button><button className={tab==='log'?'tab active':'tab'} onClick={()=>setTab('log')}>Master Ticket Log</button><button className={tab==='history'?'tab active':'tab'} onClick={()=>setTab('history')}>History & Audit</button></div>}
+ {tab==='entry'&&!historyOnly?<><div className="type-switch"><button type="button" className={type===TICKET_TYPES.INBOUND?'type active inbound':'type'} onClick={()=>{setType(TICKET_TYPES.INBOUND);setEditing(null)}}>INBOUND TICKET</button><button type="button" className={type===TICKET_TYPES.OUTBOUND?'type active outbound':'type'} onClick={()=>{setType(TICKET_TYPES.OUTBOUND);setEditing(null)}}>OUTBOUND TICKET <small>FULL FLOW</small></button></div><div className="card"><div className="card-head"><div><h2>{editing?'Edit':'Add'} {type==='inbound'?'Inbound':'Outbound'} Ticket</h2><p className="muted">{editing?'Existing workflow and current status are preserved.':'Outbound tickets use the complete Warehouse → PDI → Dispatch → Logistics → Closure flow.'}</p></div>{editing&&<button className="secondary" onClick={()=>{setEditing(null);setForm(blank(type));setMessage('')}}>Cancel Edit</button>}</div><form className="form-grid" onSubmit={submit}>{fields.map(name=><Field key={name} name={name} value={form[name]} onChange={event=>setForm({...form,[name]:event.target.value})}/>) }<div className="form-actions"><button className="primary" disabled={saving}>{saving?'Saving…':editing?'Save Ticket Changes':'Save & Route Ticket'}</button></div></form>{message&&<div className="notice">{message}</div>}</div>
+ <div className="card bulk-card"><div className="card-head"><div><div className="eyebrow">BULK TICKETS</div><h2>Import & Export Tickets</h2><p className="muted">Use the official CSV template for bulk creation. Export includes every ticket with its current workflow status.</p></div><span className="bulk-count">{tickets.length} tickets</span></div><div className="bulk-actions"><label className="upload-button"><input ref={fileRef} type="file" accept=".csv,text/csv" onChange={importCsv} hidden/>{importing?'Importing…':'Import Tickets CSV'}</label><button className="secondary" onClick={()=>downloadText('crm-saidhara-ticket-template.csv',templateToCsv())}>Download CSV Template</button><button className="secondary" onClick={exportCsv}>Export Tickets CSV</button><button className="secondary" onClick={exportPdf}>Export Tickets PDF</button></div>{importMessage&&<div className="notice">{importMessage}</div>}<div className="template-note"><strong>CSV columns:</strong> Ticket ID, Ticket Type, Customer, source/company, destination branch, freight/load/vehicle details, shed, item details, quantity, PRD date and outbound warehouse position.</div></div></>:
+ <div className="card"><div className="card-head"><div><h2>{tab==='history'||historyOnly?'CRM History & Audit':'Master Ticket Log'}</h2><span className="muted">{tab==='history'||historyOnly?'Department-specific activity filters and search.':'Live tickets with current status and edit controls.'}</span></div><div className="header-actions"><button className="secondary" onClick={exportCsv}>CSV</button><button className="secondary" onClick={exportPdf}>PDF</button></div></div>{tab==='history'||historyOnly?<HistoryFilters tickets={historyTickets} logs={logs} module="crm" onOpen={setSelected} onEdit={editTicket}/>:<TicketTable tickets={tickets} onOpen={setSelected} onEdit={editTicket}/>}</div>}
+ <TicketDetail ticket={selected} onClose={()=>setSelected(null)}/></section>
 }
