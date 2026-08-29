@@ -1,6 +1,99 @@
 import { useEffect, useMemo, useState } from 'react'
 import { STATUS_LABELS, STATUSES, SHEDS } from '../config.js'
 import { subscribeLogs, subscribeTickets } from '../services.js'
-const modules=['crm','warehouse','pdi','logistics'];const tv=v=>v?.toMillis?v.toMillis():v?new Date(v).getTime():0;const daysAgo=n=>Date.now()-n*86400000;const duration=ms=>{if(!ms||ms<0)return '—';const m=Math.round(ms/60000);if(m<60)return `${m}m`;const h=Math.floor(m/60);if(h<24)return `${h}h ${m%60}m`;return `${Math.floor(h/24)}d ${h%24}h`}
-function BarChart({rows}){const max=Math.max(1,...rows.map(x=>x.count));return <div className="bar-chart">{rows.map(x=><div className="bar-row" key={x.label}><div className="bar-label"><span>{x.label}</span><strong>{x.count}</strong></div><div className="bar-track"><i style={{width:`${x.count/max*100}%`}}/></div></div>}
-export default function Analytics(){const[tickets,setTickets]=useState([]);const[logs,setLogs]=useState([]);const[tab,setTab]=useState('overview');const[shed,setShed]=useState('ALL');useEffect(()=>subscribeTickets(setTickets),[]);useEffect(()=>subscribeLogs(setLogs),[]);const a=useMemo(()=>{const scoped=shed==='ALL'?tickets:tickets.filter(t=>t.shed===shed);const closed=scoped.filter(t=>t.currentStatus===STATUSES.CLOSED),active=scoped.filter(t=>t.currentStatus!==STATUSES.CLOSED);const ages=active.map(t=>Date.now()-tv(t.createdAt)).filter(x=>x>0);const closures=closed.map(t=>tv(t.updatedAt)-tv(t.createdAt)).filter(x=>x>0);const relevantLogs=logs.filter(l=>shed==='ALL'||scoped.some(t=>t.id===l.ticketId));const pdi=relevantLogs.filter(l=>l.module==='pdi'||l.role==='pdi');const inspections=pdi.filter(l=>l.action==='pdi_inspection_completed');const checked=inspections.reduce((s,l)=>s+Number(l.metadata?.checked||0),0),damaged=inspections.reduce((s,l)=>s+Number(l.metadata?.damaged||0),0);const statusRows=Object.entries(STATUS_LABELS).map(([s,label])=>({label,count:scoped.filter(t=>t.currentStatus===s).length})).filter(x=>x.count||scoped.length);const shedRows=SHEDS.map(s=>({label:s,count:tickets.filter(t=>t.shed===s).length}));const typeRows=['inbound','outbound'].map(s=>({label:s.toUpperCase(),count:scoped.filter(t=>t.ticketType===s).length}));const dept=modules.map(module=>{const dl=relevantLogs.filter(l=>l.module===module||l.role===module);return{module,actions:dl.length,tickets:new Set(dl.map(l=>l.ticketId).filter(Boolean)).size,recent:dl.filter(l=>tv(l.createdAt)>=daysAgo(7)).length}});const transitions=relevantLogs.filter(l=>l.previousStatus||l.newStatus).reduce((m,l)=>{const k=`${STATUS_LABELS[l.previousStatus]||l.previousStatus||'Start'} → ${STATUS_LABELS[l.newStatus]||l.newStatus||'—'}`;m[k]=(m[k]||0)+1;return m},{});return{total:scoped.length,closed:closed.length,active:active.length,inTransit:scoped.filter(t=>t.currentStatus===STATUSES.IN_TRANSIT).length,last7:scoped.filter(t=>tv(t.createdAt)>=daysAgo(7)).length,last30:scoped.filter(t=>tv(t.createdAt)>=daysAgo(30)).length,avgAge:ages.length?ages.reduce((x,y)=>x+y,0)/ages.length:0,avgClosure:closures.length?closures.reduce((x,y)=>x+y,0)/closures.length:0,checked,damaged,damageRate:checked?damaged/checked*100:0,statusRows,shedRows,typeRows,dept,transitions:Object.entries(transitions).sort((x,y)=>y[1]-x[1])}},[tickets,logs,shed]);return <section className="page"><div className="page-head"><div><div className="eyebrow">OPERATIONS INTELLIGENCE</div><h1>Analytics Dashboard</h1><p className="muted">Live business intelligence across tickets, sheds, departments, workflow and PDI quality.</p></div><div className="analytics-filter"><span>SHED</span><select value={shed} onChange={e=>setShed(e.target.value)}><option value="ALL">All Sheds</option>{SHEDS.map(s=><option key={s}>{s}</option>)}</select></div></div><div className="tabs analytics-tabs"><button className={tab==='overview'?'tab active':'tab'} onClick={()=>setTab('overview')}>Executive Overview</button><button className={tab==='sheds'?'tab active':'tab'} onClick={()=>setTab('sheds')}>Shed Intelligence</button><button className={tab==='throughput'?'tab active':'tab'} onClick={()=>setTab('throughput')}>Throughput & Aging</button><button className={tab==='quality'?'tab active':'tab'} onClick={()=>setTab('quality')}>PDI Quality</button><button className={tab==='departments'?'tab active':'tab'} onClick={()=>setTab('departments')}>Departments</button><button className={tab==='workflow'?'tab active':'tab'} onClick={()=>setTab('workflow')}>Workflow & Audit</button></div><div className="kpi-grid analytics-kpis"><div className="kpi"><small>Total Tickets</small><strong>{a.total}</strong></div><div className="kpi"><small>Active</small><strong>{a.active}</strong></div><div className="kpi"><small>Closed</small><strong>{a.closed}</strong></div><div className="kpi"><small>In Transit</small><strong>{a.inTransit}</strong></div><div className="kpi"><small>7-Day Intake</small><strong>{a.last7}</strong></div><div className="kpi"><small>Avg Closure</small><strong>{duration(a.avgClosure)}</strong></div></div>{tab==='overview'&&<div className="analytics-columns"><div className="card chart-card"><h2>Ticket Status Distribution</h2><BarChart rows={a.statusRows}/></div><div className="card chart-card"><h2>Inbound / Outbound</h2><BarChart rows={a.typeRows}/></div></div>}{tab==='sheds'&&<div className="analytics-columns"><div className="card chart-card"><h2>Tickets by Shed</h2><BarChart rows={a.shedRows}/></div><div className="card"><h2>Shed Summary</h2><div className="metric-list">{a.shedRows.map(r=><div className="metric-row" key={r.label}><span>Shed {r.label}</span><strong>{r.count} tickets</strong></div>)}</div></div></div>}{tab==='throughput'&&<div className="analytics-columns"><div className="card chart-card"><h2>Throughput</h2><BarChart rows={[{label:'Last 7 Days',count:a.last7},{label:'Last 30 Days',count:a.last30},{label:'Active',count:a.active},{label:'Closed',count:a.closed}]}/></div><div className="card"><h2>Operational Ratios</h2><div className="metric-list"><div className="metric-row"><span>Active share</span><strong>{a.total?Math.round(a.active/a.total*100):0}%</strong></div><div className="metric-row"><span>Closure rate</span><strong>{a.total?Math.round(a.closed/a.total*100):0}%</strong></div><div className="metric-row"><span>Average active age</span><strong>{duration(a.avgAge)}</strong></div><div className="metric-row"><span>Average closure</span><strong>{duration(a.avgClosure)}</strong></div></div></div></div>}{tab==='quality'&&<div className="analytics-columns"><div className="card chart-card"><h2>PDI Quality</h2><BarChart rows={[{label:'Units Checked',count:a.checked},{label:'Damaged / Defective',count:a.damaged},{label:'Approved',count:Math.max(0,a.checked-a.damaged)}]}/></div><div className="card"><h2>Quality KPIs</h2><div className="metric-list"><div className="metric-row"><span>Total units checked</span><strong>{a.checked}</strong></div><div className="metric-row"><span>Damaged units</span><strong>{a.damaged}</strong></div><div className="metric-row"><span>Damage rate</span><strong>{a.damageRate.toFixed(1)}%</strong></div></div></div></div>}{tab==='departments'&&<div className="card"><h2>Department Performance</h2><div className="table-wrap"><table><thead><tr><th>Department</th><th>Total Actions</th><th>Tickets Touched</th><th>7-Day Actions</th></tr></thead><tbody>{a.dept.map(r=><tr key={r.module}><td className="strong">{r.module.toUpperCase()}</td><td>{r.actions}</td><td>{r.tickets}</td><td>{r.recent}</td></tr>)}</tbody></table></div></div>}{tab==='workflow'&&<div className="analytics-columns"><div className="card chart-card"><h2>Workflow Transitions</h2><BarChart rows={a.transitions.map(([label,count])=>({label,count}))}/></div><div className="card"><h2>Audit Health</h2><div className="metric-list"><div className="metric-row"><span>Audit records</span><strong>{logs.length}</strong></div><div className="metric-row"><span>Tracked tickets</span><strong>{a.total}</strong></div><div className="metric-row"><span>Departments tracked</span><strong>4</strong></div></div></div></div>}<div className="card analytics-note"><strong>Audit-backed analytics</strong><p className="muted">Select a shed to isolate its ticket population. All KPI and chart values are calculated from live Firestore ticket and systemLogs data.</p></div></section>}
+
+const modules = ['crm', 'warehouse', 'pdi', 'logistics']
+const tv = v => v?.toMillis ? v.toMillis() : v ? new Date(v).getTime() : 0
+const daysAgo = n => Date.now() - n * 86400000
+const duration = ms => {
+  if (!ms || ms < 0) return '—'
+  const m = Math.round(ms / 60000)
+  if (m < 60) return `${m}m`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ${m % 60}m`
+  return `${Math.floor(h / 24)}d ${h % 24}h`
+}
+
+function BarChart({ rows = [] }) {
+  const max = Math.max(1, ...rows.map(x => Number(x.count) || 0))
+  return (
+    <div className="bar-chart">
+      {rows.map(x => (
+        <div className="bar-row" key={x.label}>
+          <div className="bar-label"><span>{x.label}</span><strong>{x.count}</strong></div>
+          <div className="bar-track"><i style={{ width: `${((Number(x.count) || 0) / max) * 100}%` }} /></div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export default function Analytics() {
+  const [tickets, setTickets] = useState([])
+  const [logs, setLogs] = useState([])
+  const [tab, setTab] = useState('overview')
+  const [shed, setShed] = useState('ALL')
+
+  useEffect(() => subscribeTickets(setTickets), [])
+  useEffect(() => subscribeLogs(setLogs), [])
+
+  const a = useMemo(() => {
+    const scoped = shed === 'ALL' ? tickets : tickets.filter(t => t.shed === shed)
+    const closed = scoped.filter(t => t.currentStatus === STATUSES.CLOSED)
+    const active = scoped.filter(t => t.currentStatus !== STATUSES.CLOSED)
+    const ages = active.map(t => Date.now() - tv(t.createdAt)).filter(x => x > 0)
+    const closures = closed.map(t => tv(t.updatedAt) - tv(t.createdAt)).filter(x => x > 0)
+    const relevantLogs = logs.filter(l => shed === 'ALL' || scoped.some(t => t.id === l.ticketId))
+    const pdi = relevantLogs.filter(l => l.module === 'pdi' || l.role === 'pdi')
+    const inspections = pdi.filter(l => l.action === 'pdi_inspection_completed')
+    const checked = inspections.reduce((s, l) => s + Number(l.metadata?.checked || 0), 0)
+    const damaged = inspections.reduce((s, l) => s + Number(l.metadata?.damaged || 0), 0)
+    const statusRows = Object.entries(STATUS_LABELS)
+      .map(([s, label]) => ({ label, count: scoped.filter(t => t.currentStatus === s).length }))
+      .filter(x => x.count || scoped.length)
+    const shedRows = SHEDS.map(s => ({ label: s, count: tickets.filter(t => t.shed === s).length }))
+    const typeRows = ['inbound', 'outbound'].map(s => ({ label: s.toUpperCase(), count: scoped.filter(t => t.ticketType === s).length }))
+    const dept = modules.map(module => {
+      const dl = relevantLogs.filter(l => l.module === module || l.role === module)
+      return { module, actions: dl.length, tickets: new Set(dl.map(l => l.ticketId).filter(Boolean)).size, recent: dl.filter(l => tv(l.createdAt) >= daysAgo(7)).length }
+    })
+    const transitions = relevantLogs.filter(l => l.previousStatus || l.newStatus).reduce((m, l) => {
+      const k = `${STATUS_LABELS[l.previousStatus] || l.previousStatus || 'Start'} → ${STATUS_LABELS[l.newStatus] || l.newStatus || '—'}`
+      m[k] = (m[k] || 0) + 1
+      return m
+    }, {})
+    return {
+      total: scoped.length, closed: closed.length, active: active.length,
+      inTransit: scoped.filter(t => t.currentStatus === STATUSES.IN_TRANSIT).length,
+      last7: scoped.filter(t => tv(t.createdAt) >= daysAgo(7)).length,
+      last30: scoped.filter(t => tv(t.createdAt) >= daysAgo(30)).length,
+      avgAge: ages.length ? ages.reduce((x, y) => x + y, 0) / ages.length : 0,
+      avgClosure: closures.length ? closures.reduce((x, y) => x + y, 0) / closures.length : 0,
+      checked, damaged, damageRate: checked ? damaged / checked * 100 : 0,
+      statusRows, shedRows, typeRows, dept,
+      transitions: Object.entries(transitions).sort((x, y) => y[1] - x[1])
+    }
+  }, [tickets, logs, shed])
+
+  return (
+    <section className="page">
+      <div className="page-head">
+        <div><div className="eyebrow">OPERATIONS INTELLIGENCE</div><h1>Analytics Dashboard</h1><p className="muted">Live business intelligence across tickets, sheds, departments, workflow and PDI quality.</p></div>
+        <div className="analytics-filter"><span>SHED</span><select value={shed} onChange={e => setShed(e.target.value)}><option value="ALL">All Sheds</option>{SHEDS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+      </div>
+      <div className="tabs analytics-tabs">
+        {['overview', 'sheds', 'throughput', 'quality', 'departments', 'workflow'].map(key => <button key={key} className={tab === key ? 'tab active' : 'tab'} onClick={() => setTab(key)}>{key === 'overview' ? 'Executive Overview' : key === 'sheds' ? 'Shed Intelligence' : key === 'throughput' ? 'Throughput & Aging' : key === 'quality' ? 'PDI Quality' : key === 'departments' ? 'Departments' : 'Workflow & Audit'}</button>)}
+      </div>
+      <div className="kpi-grid analytics-kpis">
+        <div className="kpi"><small>Total Tickets</small><strong>{a.total}</strong></div><div className="kpi"><small>Active</small><strong>{a.active}</strong></div><div className="kpi"><small>Closed</small><strong>{a.closed}</strong></div><div className="kpi"><small>In Transit</small><strong>{a.inTransit}</strong></div><div className="kpi"><small>7-Day Intake</small><strong>{a.last7}</strong></div><div className="kpi"><small>Avg Closure</small><strong>{duration(a.avgClosure)}</strong></div>
+      </div>
+      {tab === 'overview' && <div className="analytics-columns"><div className="card chart-card"><h2>Ticket Status Distribution</h2><BarChart rows={a.statusRows} /></div><div className="card chart-card"><h2>Inbound / Outbound</h2><BarChart rows={a.typeRows} /></div></div>}
+      {tab === 'sheds' && <div className="analytics-columns"><div className="card chart-card"><h2>Tickets by Shed</h2><BarChart rows={a.shedRows} /></div><div className="card"><h2>Shed Summary</h2><div className="metric-list">{a.shedRows.map(r => <div className="metric-row" key={r.label}><span>Shed {r.label}</span><strong>{r.count} tickets</strong></div>)}</div></div></div>}
+      {tab === 'throughput' && <div className="analytics-columns"><div className="card chart-card"><h2>Throughput</h2><BarChart rows={[{ label: 'Last 7 Days', count: a.last7 }, { label: 'Last 30 Days', count: a.last30 }, { label: 'Active', count: a.active }, { label: 'Closed', count: a.closed }]} /></div><div className="card"><h2>Operational Ratios</h2><div className="metric-list"><div className="metric-row"><span>Active share</span><strong>{a.total ? Math.round(a.active / a.total * 100) : 0}%</strong></div><div className="metric-row"><span>Closure rate</span><strong>{a.total ? Math.round(a.closed / a.total * 100) : 0}%</strong></div><div className="metric-row"><span>Average active age</span><strong>{duration(a.avgAge)}</strong></div><div className="metric-row"><span>Average closure</span><strong>{duration(a.avgClosure)}</strong></div></div></div></div>}
+      {tab === 'quality' && <div className="analytics-columns"><div className="card chart-card"><h2>PDI Quality</h2><BarChart rows={[{ label: 'Units Checked', count: a.checked }, { label: 'Damaged / Defective', count: a.damaged }, { label: 'Approved', count: Math.max(0, a.checked - a.damaged) }]} /></div><div className="card"><h2>Quality KPIs</h2><div className="metric-list"><div className="metric-row"><span>Total units checked</span><strong>{a.checked}</strong></div><div className="metric-row"><span>Damaged units</span><strong>{a.damaged}</strong></div><div className="metric-row"><span>Damage rate</span><strong>{a.damageRate.toFixed(1)}%</strong></div></div></div></div>}
+      {tab === 'departments' && <div className="card"><h2>Department Performance</h2><div className="table-wrap"><table><thead><tr><th>Department</th><th>Total Actions</th><th>Tickets Touched</th><th>7-Day Actions</th></tr></thead><tbody>{a.dept.map(r => <tr key={r.module}><td className="strong">{r.module.toUpperCase()}</td><td>{r.actions}</td><td>{r.tickets}</td><td>{r.recent}</td></tr>)}</tbody></table></div></div>}
+      {tab === 'workflow' && <div className="analytics-columns"><div className="card chart-card"><h2>Workflow Transitions</h2><BarChart rows={a.transitions.map(([label, count]) => ({ label, count }))} /></div><div className="card"><h2>Audit Health</h2><div className="metric-list"><div className="metric-row"><span>Audit records</span><strong>{logs.length}</strong></div><div className="metric-row"><span>Tracked tickets</span><strong>{a.total}</strong></div><div className="metric-row"><span>Departments tracked</span><strong>4</strong></div></div></div></div>}
+      <div className="card analytics-note"><strong>Audit-backed analytics</strong><p className="muted">Select a shed to isolate its ticket population. All KPI and chart values are calculated from live Firestore ticket and systemLogs data.</p></div>
+    </section>
+  )
+}
