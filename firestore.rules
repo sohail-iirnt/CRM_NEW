@@ -4,36 +4,69 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function activeUser() { return signedIn() && userDoc().data.active != false && userDoc().data.blocked != true; }
+
+    // Keep role matching compatible with existing user records while avoiding
+    // unsupported/fragile string transformations inside Firestore Rules.
     function roleMatches(value, name) {
-      return value == name || value == name.upper() || value == name.capitalize();
+      return value == name ||
+        (name == 'crm' && value == 'CRM') ||
+        (name == 'warehouse' && value == 'Warehouse') ||
+        (name == 'pdi' && value == 'PDI') ||
+        (name == 'logistics' && value == 'Logistics') ||
+        (name == 'admin' && value == 'Admin');
     }
-    function hasRole(name) {
-      return activeUser() && (
-        roleMatches(userDoc().data.role, name) ||
-        (userDoc().data.accessRoles is list && (
-          name in userDoc().data.accessRoles ||
-          name.upper() in userDoc().data.accessRoles ||
-          name.capitalize() in userDoc().data.accessRoles
-        ))
+
+    function accessListHas(name) {
+      return userDoc().data.accessRoles is list && (
+        name in userDoc().data.accessRoles ||
+        (name == 'crm' && 'CRM' in userDoc().data.accessRoles) ||
+        (name == 'warehouse' && 'Warehouse' in userDoc().data.accessRoles) ||
+        (name == 'pdi' && 'PDI' in userDoc().data.accessRoles) ||
+        (name == 'logistics' && 'Logistics' in userDoc().data.accessRoles) ||
+        (name == 'admin' && 'Admin' in userDoc().data.accessRoles)
       );
     }
+
+    function hasRole(name) {
+      return activeUser() && (roleMatches(userDoc().data.role, name) || accessListHas(name));
+    }
+
     function admin() { return hasRole('admin'); }
-    function ticketUser() { return hasRole('crm') || hasRole('warehouse') || hasRole('pdi') || hasRole('logistics') || admin(); }
+    function ticketUser() {
+      return hasRole('crm') || hasRole('warehouse') || hasRole('pdi') || hasRole('logistics') || admin();
+    }
 
     match /users/{uid} {
+      // Users can read their own live profile; Admin can manage the directory.
       allow read: if signedIn() && (request.auth.uid == uid || admin());
-      allow create, update, delete: if admin();
+      allow create: if admin();
+      // A signed-in user may update only the login heartbeat fields on their own
+      // profile. Admin retains unrestricted profile management.
+      allow update: if admin() || (
+        signedIn() && request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt', 'updatedAt'])
+      );
+      allow delete: if admin();
     }
 
     match /tickets/{ticketId} {
+      // Every active operational team can work on existing tickets and create
+      // tickets when required by their workflow. Deletion remains Admin-only.
       allow read: if ticketUser();
       allow create: if ticketUser();
       allow update: if ticketUser();
       allow delete: if admin();
     }
 
-    match /workflowRules/{ruleId} { allow read: if signedIn(); allow write: if admin(); }
-    match /settings/{settingId} { allow read: if signedIn(); allow write: if admin(); }
+    match /workflowRules/{ruleId} {
+      allow read: if signedIn();
+      allow write: if admin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if signedIn();
+      allow write: if admin();
+    }
 
     match /inspectors/{inspectorId} {
       allow read: if hasRole('pdi') || admin();
