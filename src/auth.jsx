@@ -5,12 +5,7 @@ import { auth, db, firebaseConfigured } from './firebase.js'
 import { ROLES } from './config.js'
 
 const AuthContext = createContext(null)
-// accessRoles is the source of truth when it exists. The role field is used only for legacy
-// profiles that do not yet have an explicit accessRoles array.
-const normalizeRoles = data => {
-  if (Array.isArray(data?.accessRoles)) return Array.from(new Set(data.accessRoles.filter(Boolean)))
-  return data?.role ? [data.role] : [ROLES.CRM]
-}
+const normalizeRoles = data => Array.from(new Set([...(Array.isArray(data?.accessRoles)?data.accessRoles:[]),data?.role].filter(Boolean)))
 
 export function AuthProvider({ children }) {
   const [user,setUser]=useState(null),[profile,setProfile]=useState(null),[loading,setLoading]=useState(firebaseConfigured),[error,setError]=useState('')
@@ -38,7 +33,7 @@ export function AuthProvider({ children }) {
   },[])
   const login=async(email,password)=>{setError('');if(!auth){const e=new Error('Firebase is not configured. Add VITE_FIREBASE_* values to .env.local.');setError(e.message);throw e}try{await signInWithEmailAndPassword(auth,email.trim(),password)}catch(e){const code=e?.code||'';let message=e?.message||'Unable to sign in.';if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].includes(code))message='Invalid email or password.';else if(code==='auth/too-many-requests')message='Too many unsuccessful attempts. Please try again later.';else if(code==='auth/user-disabled')message='This Firebase account has been disabled.';else if(code==='auth/invalid-email')message='Please enter a valid email address.';setError(message);throw new Error(message)}}
   const logout=async()=>{setProfile(null);setUser(null);if(auth)await signOut(auth)}
-  const hasRole=role=>{if(!profile||profile.blocked===true||profile.active===false)return false;return profile.accessRoles?.includes(ROLES.ADMIN)||profile.accessRoles?.includes(role)}
+  const hasRole=role=>{if(!profile||profile.blocked===true||profile.active===false)return false;return profile.role===ROLES.ADMIN||profile.accessRoles?.includes(ROLES.ADMIN)||profile.role===role||profile.accessRoles?.includes(role)}
   const value=useMemo(()=>({user,profile,loading,error,login,logout,hasRole,hasAccess:hasRole,firebaseConfigured}),[user,profile,loading,error])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
