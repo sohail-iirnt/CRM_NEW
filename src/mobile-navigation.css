@@ -1,0 +1,12 @@
+/* CRM SAIDHARA mobile navigation + responsive shell */
+.mobile-nav-toggle,.mobile-nav-close{display:none}
+@media (max-width:900px){
+.sidebar{z-index:1000}.mobile-backdrop{display:none}.topbar{gap:12px}
+.mobile-nav-toggle{display:inline-flex;width:42px;height:42px;align-items:center;justify-content:center;border:1px solid var(--border,#dfe5ee);border-radius:12px;background:var(--surface,#fff);font-size:21px;cursor:pointer;flex:0 0 auto}
+.mobile-nav-close{display:inline-flex;margin-left:auto;width:38px;height:38px;align-items:center;justify-content:center;border:0;border-radius:10px;background:transparent;font-size:27px;cursor:pointer}.topbar-user{max-width:35vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+@media (max-width:720px){
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:min(88vw,340px);transform:translateX(-105%);transition:transform .22s ease;box-shadow:0 20px 60px rgba(15,23,42,.22);overflow-y:auto}.mobile-nav-open .sidebar{transform:translateX(0)}
+.mobile-nav-open .mobile-backdrop{display:block;position:fixed;inset:0;background:rgba(15,23,42,.48);z-index:999}.main{width:100%;min-width:0}.topbar{position:sticky;top:0;z-index:900;min-height:62px;padding:10px 14px}.page,.page-head{min-width:0}.page{padding-left:14px;padding-right:14px}.page-head{flex-direction:column;align-items:stretch;gap:14px}.queue-filter,.queue-filter select{width:100%}.card{max-width:100%;overflow:hidden}.table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.table-wrap table{min-width:720px}.form-grid{grid-template-columns:1fr!important}.wide-field{grid-column:auto!important}.form-actions{flex-wrap:wrap}.form-actions button{min-height:44px;flex:1 1 150px}input,select,textarea,button{font-size:16px}
+}
+@media (max-width:430px){.topbar-user{display:none}.topbar>div{font-size:13px}.nav-module{min-height:52px}.nav-subitem{min-height:46px;font-size:14px}.role-card{margin:10px}.card{border-radius:16px}h1{font-size:25px}h2{font-size:19px}}
