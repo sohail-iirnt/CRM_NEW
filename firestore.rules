@@ -4,7 +4,8 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function activeUser() { return signedIn() && userDoc().data.active == true && userDoc().data.blocked != true; }
-    function hasRole(name) { return activeUser() && (userDoc().data.role == name || (userDoc().data.accessRoles is list && name in userDoc().data.accessRoles)); }
+    // Explicit accessRoles is authoritative. Legacy profiles without the field fall back to role.
+    function hasRole(name) { return activeUser() && ((userDoc().data.accessRoles is list && name in userDoc().data.accessRoles) || (!(userDoc().data.accessRoles is list) && userDoc().data.role == name)); }
     function admin() { return hasRole('admin'); }
     function ticketUser() { return hasRole('crm') || hasRole('warehouse') || hasRole('pdi') || hasRole('logistics') || admin(); }
     match /users/{uid} { allow read: if signedIn() && (request.auth.uid == uid || admin()); allow create, update, delete: if admin(); }
