@@ -69,9 +69,9 @@ service cloud.firestore {
     }
 
     match /inspectors/{inspectorId} {
+      // Inspector directory is centrally managed by Admin. PDI is read-only.
       allow read: if hasRole('pdi') || admin();
-      allow create, update: if hasRole('pdi') || admin();
-      allow delete: if admin();
+      allow create, update, delete: if admin();
     }
 
     match /systemLogs/{logId} {
