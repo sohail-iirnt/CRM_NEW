@@ -4,15 +4,33 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
     function activeUser() { return signedIn() && userDoc().data.active == true && userDoc().data.blocked != true; }
-    // Explicit accessRoles is authoritative. Legacy profiles without the field fall back to role.
     function hasRole(name) { return activeUser() && ((userDoc().data.accessRoles is list && name in userDoc().data.accessRoles) || (!(userDoc().data.accessRoles is list) && userDoc().data.role == name)); }
     function admin() { return hasRole('admin'); }
     function ticketUser() { return hasRole('crm') || hasRole('warehouse') || hasRole('pdi') || hasRole('logistics') || admin(); }
-    match /users/{uid} { allow read: if signedIn() && (request.auth.uid == uid || admin()); allow create, update, delete: if admin(); }
-    match /tickets/{ticketId} { allow read: if ticketUser(); allow create: if hasRole('crm') || admin(); allow update: if ticketUser(); allow delete: if admin(); }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || admin());
+      allow create, update, delete: if admin();
+    }
+
+    match /tickets/{ticketId} {
+      allow read: if ticketUser();
+      allow create: if ticketUser();
+      allow update: if ticketUser();
+      allow delete: if admin();
+    }
+
     match /workflowRules/{ruleId} { allow read: if signedIn(); allow write: if admin(); }
     match /settings/{settingId} { allow read: if signedIn(); allow write: if admin(); }
-    match /inspectors/{inspectorId} { allow read: if hasRole('pdi') || admin(); allow create, update: if hasRole('pdi') || admin(); allow delete: if admin(); }
-    match /systemLogs/{logId} { allow read: if signedIn(); allow create: if activeUser() && request.resource.data.userId == request.auth.uid; allow update, delete: if false; }
+    match /inspectors/{inspectorId} {
+      allow read: if hasRole('pdi') || admin();
+      allow create, update: if hasRole('pdi') || admin();
+      allow delete: if admin();
+    }
+    match /systemLogs/{logId} {
+      allow read: if signedIn();
+      allow create: if activeUser();
+      allow update, delete: if false;
+    }
   }
 }
