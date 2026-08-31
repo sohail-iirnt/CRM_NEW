@@ -3,7 +3,7 @@ import { subscribeLogs, subscribeTickets } from '../services.js'
 import { DEFAULT_WORKFLOW_RULES } from '../workflow.js'
 import { STATUS_LABELS, STATUSES, SHEDS } from '../config.js'
 import { useAuth } from '../auth.jsx'
-import { TicketDetail, TicketLink } from '../components/TicketDetail.jsx'
+import TicketDetail, { TicketLink } from '../components/TicketDetail.jsx'
 import AdminManagement from '../components/AdminManagement.jsx'
 import './admin-users.css'
 
