@@ -5,7 +5,8 @@ import { auth, db, firebaseConfigured } from './firebase.js'
 import { ROLES } from './config.js'
 
 const AuthContext = createContext(null)
-const normalizeRoles = data => Array.from(new Set([...(Array.isArray(data?.accessRoles)?data.accessRoles:[]),data?.role].filter(Boolean)))
+const normalizeRole = value => String(value || '').trim().toLowerCase()
+const normalizeRoles = data => Array.from(new Set([...(Array.isArray(data?.accessRoles) ? data.accessRoles : []), data?.role].map(normalizeRole).filter(Boolean)))
 
 export function AuthProvider({ children }) {
   const [user,setUser]=useState(null),[profile,setProfile]=useState(null),[loading,setLoading]=useState(firebaseConfigured),[error,setError]=useState('')
@@ -19,11 +20,9 @@ export function AuthProvider({ children }) {
       const profileRef=doc(db,'users',nextUser.uid)
       unsubscribeProfile=onSnapshot(profileRef,async snap=>{
         if(!snap.exists()){
-          const newProfile={uid:nextUser.uid,email:nextUser.email||'',name:nextUser.displayName||nextUser.email||'User',role:ROLES.CRM,accessRoles:[ROLES.CRM],active:true,blocked:false,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),lastLoginAt:serverTimestamp()}
-          try{await setDoc(profileRef,newProfile);setProfile({...newProfile,createdAt:null,updatedAt:null,lastLoginAt:null})}catch(e){setError(e?.message||'Unable to create your account profile.');setProfile(null)}
-          setLoading(false);return
+          setProfile(null);setLoading(false);setError('Your Firebase account has no CRM profile. Ask an Admin to create or restore your user profile.');return
         }
-        const data=snap.data(),roles=normalizeRoles(data),normalized={uid:nextUser.uid,email:data.email||nextUser.email||'',name:data.name||nextUser.displayName||nextUser.email||'User',role:roles.includes(ROLES.ADMIN)?ROLES.ADMIN:(data.role||roles[0]),accessRoles:roles,department:data.department||data.role||roles[0],active:data.active!==false,blocked:data.blocked===true}
+        const data=snap.data(),roles=normalizeRoles(data),normalized={uid:nextUser.uid,email:data.email||nextUser.email||'',name:data.name||nextUser.displayName||nextUser.email||'User',role:roles.includes(ROLES.ADMIN)?ROLES.ADMIN:(normalizeRole(data.role)||roles[0]),accessRoles:roles,department:normalizeRole(data.department)||normalizeRole(data.role)||roles[0],active:data.active!==false,blocked:data.blocked===true}
         if(!normalized.active||normalized.blocked){setProfile(null);setError(normalized.blocked?'Your account has been blocked by an administrator.':'Your account has been deactivated by an administrator.');setLoading(false);try{await signOut(auth)}catch{};return}
         setProfile(normalized);setLoading(false)
         try{await setDoc(profileRef,{lastLoginAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Unable to update login timestamp:',e)}
@@ -33,7 +32,7 @@ export function AuthProvider({ children }) {
   },[])
   const login=async(email,password)=>{setError('');if(!auth){const e=new Error('Firebase is not configured. Add VITE_FIREBASE_* values to .env.local.');setError(e.message);throw e}try{await signInWithEmailAndPassword(auth,email.trim(),password)}catch(e){const code=e?.code||'';let message=e?.message||'Unable to sign in.';if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].includes(code))message='Invalid email or password.';else if(code==='auth/too-many-requests')message='Too many unsuccessful attempts. Please try again later.';else if(code==='auth/user-disabled')message='This Firebase account has been disabled.';else if(code==='auth/invalid-email')message='Please enter a valid email address.';setError(message);throw new Error(message)}}
   const logout=async()=>{setProfile(null);setUser(null);if(auth)await signOut(auth)}
-  const hasRole=role=>{if(!profile||profile.blocked===true||profile.active===false)return false;return profile.role===ROLES.ADMIN||profile.accessRoles?.includes(ROLES.ADMIN)||profile.role===role||profile.accessRoles?.includes(role)}
+  const hasRole=role=>{if(!profile||profile.blocked===true||profile.active===false)return false;const wanted=normalizeRole(role);return profile.role===ROLES.ADMIN||profile.accessRoles?.includes(ROLES.ADMIN)||profile.role===wanted||profile.accessRoles?.includes(wanted)}
   const value=useMemo(()=>({user,profile,loading,error,login,logout,hasRole,hasAccess:hasRole,firebaseConfigured}),[user,profile,loading,error])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
