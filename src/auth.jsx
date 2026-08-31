@@ -13,8 +13,9 @@ export function AuthProvider({ children }) {
   useEffect(()=>{
     if(!auth||!db){setLoading(false);return undefined}
     let unsubscribeProfile=()=>{}
+    let heartbeatWritten=false
     const unsubscribeAuth=onAuthStateChanged(auth,nextUser=>{
-      unsubscribeProfile(); setError(''); setUser(nextUser)
+      unsubscribeProfile(); heartbeatWritten=false; setError(''); setUser(nextUser)
       if(!nextUser){setProfile(null);setLoading(false);return}
       setLoading(true)
       const profileRef=doc(db,'users',nextUser.uid)
@@ -25,7 +26,12 @@ export function AuthProvider({ children }) {
         const data=snap.data(),roles=normalizeRoles(data),normalized={uid:nextUser.uid,email:data.email||nextUser.email||'',name:data.name||nextUser.displayName||nextUser.email||'User',role:roles.includes(ROLES.ADMIN)?ROLES.ADMIN:(normalizeRole(data.role)||roles[0]),accessRoles:roles,department:normalizeRole(data.department)||normalizeRole(data.role)||roles[0],active:data.active!==false,blocked:data.blocked===true}
         if(!normalized.active||normalized.blocked){setProfile(null);setError(normalized.blocked?'Your account has been blocked by an administrator.':'Your account has been deactivated by an administrator.');setLoading(false);try{await signOut(auth)}catch{};return}
         setProfile(normalized);setLoading(false)
-        try{await setDoc(profileRef,{lastLoginAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Unable to update login timestamp:',e)}
+        // Write the login heartbeat once per authenticated session. Do not write
+        // from every profile snapshot, otherwise the snapshot triggers itself.
+        if(!heartbeatWritten){
+          heartbeatWritten=true
+          try{await setDoc(profileRef,{lastLoginAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Unable to update login timestamp:',e);heartbeatWritten=false}
+        }
       },e=>{console.error('Unable to watch CRM profile:',e);setProfile(null);setError(e?.message||'Unable to load your CRM account profile.');setLoading(false)})
     })
     return ()=>{unsubscribeProfile();unsubscribeAuth()}
