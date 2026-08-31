@@ -3,8 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
-    function activeUser() { return signedIn() && userDoc().data.active == true && userDoc().data.blocked != true; }
-    function hasRole(name) { return activeUser() && ((userDoc().data.accessRoles is list && name in userDoc().data.accessRoles) || (!(userDoc().data.accessRoles is list) && userDoc().data.role == name)); }
+    function activeUser() { return signedIn() && userDoc().data.active != false && userDoc().data.blocked != true; }
+    function hasRole(name) { return activeUser() && (userDoc().data.role == name || (userDoc().data.accessRoles is list && name in userDoc().data.accessRoles)); }
     function admin() { return hasRole('admin'); }
     function ticketUser() { return hasRole('crm') || hasRole('warehouse') || hasRole('pdi') || hasRole('logistics') || admin(); }
 
@@ -22,13 +22,15 @@ service cloud.firestore {
 
     match /workflowRules/{ruleId} { allow read: if signedIn(); allow write: if admin(); }
     match /settings/{settingId} { allow read: if signedIn(); allow write: if admin(); }
+
     match /inspectors/{inspectorId} {
       allow read: if hasRole('pdi') || admin();
       allow create, update: if hasRole('pdi') || admin();
       allow delete: if admin();
     }
+
     match /systemLogs/{logId} {
-      allow read: if signedIn();
+      allow read: if activeUser();
       allow create: if activeUser();
       allow update, delete: if false;
     }
