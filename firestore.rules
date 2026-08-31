@@ -3,13 +3,17 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function activeUser() {
+      return signedIn() && userDoc().data.active == true && userDoc().data.blocked != true;
+    }
     function hasRole(name) {
-      return signedIn() && userDoc().data.active == true && userDoc().data.blocked != true && (
+      return activeUser() && (
         userDoc().data.role == name ||
         (userDoc().data.accessRoles is list && name in userDoc().data.accessRoles)
       );
     }
     function admin() { return hasRole('admin'); }
+    function ticketUser() { return hasRole('crm') || hasRole('warehouse') || hasRole('pdi') || hasRole('logistics') || admin(); }
 
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || admin());
@@ -17,17 +21,13 @@ service cloud.firestore {
     }
 
     match /tickets/{ticketId} {
-      allow read: if signedIn() && (
-        admin() || hasRole('crm') || hasRole('warehouse') || hasRole('pdi') || hasRole('logistics')
-      );
+      allow read: if ticketUser();
       allow create: if hasRole('crm') || admin();
-      allow update: if admin()
-        || (hasRole('crm') && resource.data.currentStatus == 'pending_warehouse' && request.resource.data.currentStatus == 'pending_warehouse')
-        || (hasRole('warehouse') && resource.data.currentStatus == 'pending_warehouse' && (request.resource.data.currentStatus == 'ready_for_pdi' || request.resource.data.currentStatus == 'ready_for_dispatch'))
-        || (hasRole('warehouse') && resource.data.currentStatus == 'ready_for_dispatch' && request.resource.data.currentStatus == 'logistics_pending')
-        || (hasRole('pdi') && resource.data.currentStatus == 'ready_for_pdi' && request.resource.data.currentStatus == 'ready_for_dispatch')
-        || (hasRole('logistics') && resource.data.currentStatus == 'logistics_pending' && request.resource.data.currentStatus == 'in_transit')
-        || (hasRole('logistics') && resource.data.currentStatus == 'in_transit' && request.resource.data.currentStatus == 'closed');
+      // Every active operational team member may update tickets. Ticket edits are
+      // intentionally not restricted by the current workflow status because teams
+      // need to correct ticket data during the complete lifecycle. The application
+      // continues to record the actor and every change in systemLogs.
+      allow update: if ticketUser();
       allow delete: if admin();
     }
 
