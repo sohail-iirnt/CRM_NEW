@@ -1,5 +1,6 @@
-import { addDoc, collection, doc, getApps, initializeApp, onSnapshot, serverTimestamp, setDoc, updateDoc, query, orderBy } from 'firebase/firestore'
+import { collection, doc, onSnapshot, serverTimestamp, setDoc, updateDoc, query, orderBy } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, getAuth, signOut } from 'firebase/auth'
+import { getApp, initializeApp } from 'firebase/app'
 import { db, firebaseConfig } from './firebase.js'
 import { ROLES } from './config.js'
 
@@ -13,6 +14,11 @@ export function subscribeUsers(callback, onError) {
   }, onError)
 }
 
+function getSecondaryApp() {
+  const appName = 'crm-saidhara-user-creator'
+  try { return getApp(appName) } catch { return initializeApp(firebaseConfig, appName) }
+}
+
 export async function createManagedUser({ name, department, accessRoles, email, password, actor }) {
   if (!db) throw new Error('Firebase is not configured.')
   const cleanName = name?.trim()
@@ -22,9 +28,7 @@ export async function createManagedUser({ name, department, accessRoles, email, 
   if (password.length < 6) throw new Error('Password must contain at least 6 characters.')
   if (!roles.length) throw new Error('Select at least one access role.')
 
-  const appName = `crm-saidhara-user-creator-${Date.now()}`
-  const secondaryApp = initializeApp(firebaseConfig, appName)
-  const secondaryAuth = getAuth(secondaryApp)
+  const secondaryAuth = getAuth(getSecondaryApp())
   try {
     const credential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, password)
     await setDoc(doc(db, USERS_COLLECTION, credential.user.uid), {
@@ -44,8 +48,7 @@ export async function createManagedUser({ name, department, accessRoles, email, 
     await signOut(secondaryAuth)
     return credential.user.uid
   } finally {
-    // The secondary Firebase app is intentionally isolated so the current admin session is untouched.
-    // Firebase Auth account creation is handled by Auth; passwords are never written to Firestore.
+    // Passwords remain only in Firebase Authentication; never persist credentials in Firestore.
   }
 }
 
