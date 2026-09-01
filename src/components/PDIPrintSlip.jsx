@@ -30,6 +30,8 @@ export default function PDIPrintSlip({ ticket, pdiDoneLog }) {
     const ticketNumber = ticket?.ticketId || ticket?.id || '—'
     const customer = ticket?.customerName || '—'
     const destination = ticket?.destinationBranch || ticket?.destinationCompany || '—'
+    const itemCode = ticket?.itemCode || '—'
+    const quantity = ticket?.quantity ?? ticket?.qty ?? '—'
 
     popup.document.open()
     popup.document.write(`<!doctype html>
@@ -67,6 +69,8 @@ export default function PDIPrintSlip({ ticket, pdiDoneLog }) {
       <div class="row"><div class="label">PDI Done Date</div><div class="value">${escapeHtml(pdiDoneDate)}</div></div>
       <div class="row"><div class="label">Ticket Number</div><div class="value ticket">${escapeHtml(ticketNumber)}</div></div>
       <div class="row"><div class="label">Customer Name</div><div class="value">${escapeHtml(customer)}</div></div>
+      <div class="row"><div class="label">Item Code</div><div class="value">${escapeHtml(itemCode)}</div></div>
+      <div class="row"><div class="label">Quantity</div><div class="value">${escapeHtml(quantity)}</div></div>
       <div class="row"><div class="label">Destination Branch</div><div class="value">${escapeHtml(destination)}</div></div>
     </section>
     <div class="footer">PDI completed and recorded in CRM SAIDHARA.</div>
