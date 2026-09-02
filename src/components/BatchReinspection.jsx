@@ -82,6 +82,7 @@ export function BatchReinspectionRequest({ ticket, onDone }) {
           latestBatchNumber: currentBatchNumber,
           latestBatchQuantity: allocated,
           latestBatchNoStock: false,
+          latestBatchNoStockRemarks: '',
           batches: updatedBatches,
           batchTotals: totals
         }
@@ -167,7 +168,7 @@ export function WarehouseBatchResponse({ ticket, onDone }) {
         currentStatus: STATUSES.READY_FOR_PDI,
         currentModule: 'pdi',
         previousStatus: ticket.currentStatus,
-        pdi: { ...(ticket.pdi || {}), reinspectionRequested:false, requestedQuantity:noStock?0:Number(quantity), requestCount:batchNumber, latestBatchNumber:batchNumber, latestBatchQuantity:noStock?0:Number(quantity), latestBatchNoStock:noStock, batches:[...batches,batch], batchTotals:totals }
+        pdi: { ...(ticket.pdi || {}), reinspectionRequested:false, requestedQuantity:noStock?0:Number(quantity), requestCount:batchNumber, latestBatchNumber:batchNumber, latestBatchQuantity:noStock?0:Number(quantity), latestBatchNoStock:noStock, latestBatchNoStockRemarks:noStock?remarks:'', batches:[...batches,batch], batchTotals:totals }
       }, profile, action, {
         module:'warehouse', previousStatus:ticket.currentStatus, newStatus:STATUSES.READY_FOR_PDI,
         details:noStock ? `Warehouse reported no more stock for batch request #${batchNumber}.` : `Warehouse allocated batch #${batchNumber} and resent ticket to PDI. Quantity: ${quantity}.`,
