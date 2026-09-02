@@ -23,7 +23,7 @@ export const TICKET_TYPES = Object.freeze({
 
 export const INBOUND_SOURCES = ['Haridwar', 'Shirwal', 'Khalapur', 'Supplier', 'Other']
 export const DESTINATION_COMPANIES = ['5000', 'Other']
-export const PDI_RESULTS = ['PDI OK', 'ALL MATERIAL DAMAGE - NO STOCK', 'Other']
+export const PDI_RESULTS = ['PDI OK', 'ALL MATERIAL DAMAGE', 'NO STOCK', 'Other']
 export const DISPATCH_METHODS = ['Dedicated', 'Courier']
 
 export const STATUSES = Object.freeze({
