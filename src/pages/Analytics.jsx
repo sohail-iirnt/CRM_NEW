@@ -56,11 +56,11 @@ export default function Analytics() {
   const a = useMemo(() => {
     const monthScoped = month ? tickets.filter(ticket => monthKey(ticket.createdAt) === month) : tickets
     const scoped = shed === 'ALL' ? monthScoped : monthScoped.filter(ticket => ticket.shed === shed)
+    const scopedIds = new Set(scoped.map(ticket => ticket.id).filter(Boolean))
     const closed = scoped.filter(ticket => ticket.currentStatus === STATUSES.CLOSED)
     const active = scoped.filter(ticket => ticket.currentStatus !== STATUSES.CLOSED)
     const ages = active.map(ticket => Date.now() - tv(ticket.createdAt)).filter(value => value > 0)
     const closures = closed.map(ticket => tv(ticket.updatedAt) - tv(ticket.createdAt)).filter(value => value > 0)
-    const scopedIds = new Set(scoped.map(ticket => ticket.id).filter(Boolean))
     const relevantLogs = logs.filter(log => scopedIds.has(log.ticketId))
     const pdi = relevantLogs.filter(log => log.module === 'pdi' || log.role === 'pdi')
     const inspections = pdi.filter(log => log.action === 'pdi_inspection_completed')
@@ -103,6 +103,7 @@ export default function Analytics() {
       approved: Math.max(0, checked - damaged),
       damageRate: checked ? damaged / checked * 100 : 0,
       noStockClosures,
+      auditRecords: relevantLogs.length,
       statusRows,
       shedRows,
       typeRows,
@@ -198,7 +199,7 @@ export default function Analytics() {
       {tab === 'workflow' && <div className="analytics-columns">
         <div className="card chart-card"><h2>Workflow Transitions</h2><BarChart rows={a.transitions.map(([label, count]) => ({ label, count }))} /></div>
         <div className="card"><h2>Audit Health</h2><div className="metric-list">
-          <div className="metric-row"><span>Audit records</span><strong>{a.total ? new Set(logs.filter(log => new Set(a.dept.map(row => row.module)).has(log.module) && a.total).values()).size : 0}</strong></div>
+          <div className="metric-row"><span>Audit records</span><strong>{a.auditRecords}</strong></div>
           <div className="metric-row"><span>Tracked tickets</span><strong>{a.total}</strong></div>
           <div className="metric-row"><span>Departments tracked</span><strong>4</strong></div>
         </div></div>
