@@ -11,16 +11,17 @@
 .ops-overview .overall-pill::before{content:'TOTAL OVERALL TIME';font-size:9px;font-weight:800;letter-spacing:.04em;margin-right:0}
 .ops-overview .overall-pill::after{content:'CREATE → CURRENT STAGE';margin-left:auto;font-size:9px;font-weight:800;letter-spacing:.03em}
 .timestamp-board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;background:transparent}
-.timestamp-card{min-width:0;min-height:110px;padding:16px 34px 14px 62px;border:1px solid rgba(148,163,184,.28);border-radius:13px;background:rgba(30,43,78,.78);color:#fff;box-shadow:none;transition:none}
+.timestamp-card{min-width:0;min-height:110px;padding:16px 34px 14px 62px;border:1px solid rgba(148,163,184,.28);border-radius:13px;background:rgba(30,43,78,.78);color:#fff;box-shadow:none;transition:none;overflow:hidden}
 .timestamp-card.done{border-color:rgba(191,219,254,.9);background:rgba(39,52,88,.82);box-shadow:none}
 .timestamp-card.pending{opacity:1;background:rgba(26,39,72,.65);border-color:rgba(100,116,139,.12)}
 .timestamp-card:hover{transform:none;box-shadow:none}
-.timestamp-index{left:16px;top:17px;width:34px;height:34px;border-radius:9px;background:#2864e8;color:#fff;font-size:10px;box-shadow:none}
+.timestamp-index{left:14px;top:17px;width:36px;height:36px;min-width:36px;display:grid;place-items:center;z-index:2;border-radius:9px;background:#2864e8;color:#fff;font-size:10px;line-height:1;font-weight:800;box-shadow:none}
 .timestamp-card.pending .timestamp-index{background:#2354b9;color:#b8c8e8}
-.timestamp-card small{color:#9fb0cf;font-size:10px;line-height:1.25;white-space:normal}
+.timestamp-card small,.timestamp-card strong{position:relative;z-index:1;display:block;margin-left:8px;max-width:calc(100% - 8px);overflow:hidden}
+.timestamp-card small{color:#9fb0cf;font-size:10px;line-height:1.3;white-space:normal;padding-right:18px}
 .timestamp-card.done small{color:#bfd0ed}
-.timestamp-card strong{margin-top:7px;color:#fff;font-size:12px;line-height:1.35;white-space:nowrap}
+.timestamp-card strong{margin-top:7px;color:#fff;font-size:12px;line-height:1.35;white-space:nowrap;text-overflow:ellipsis;padding-right:4px}
 .timestamp-card.pending strong{color:#9aa6bf}
-.timestamp-arrow{display:block;position:absolute;right:26px;top:19px;color:#5f739b;font-size:14px;font-weight:700}
+.timestamp-arrow{display:block;position:absolute;right:16px;top:18px;color:#5f739b;font-size:14px;font-weight:700;z-index:1}
 @media(max-width:1100px){.timestamp-board{grid-template-columns:repeat(2,minmax(0,1fr))}.timestamp-card{min-height:100px}}
-@media(max-width:680px){.ops-overview{padding:16px 14px 84px;border-radius:16px}.ops-overview .section-mini-head{margin-bottom:14px}.ops-overview .overall-pill{left:14px;right:14px;bottom:14px;height:54px;padding:0 13px;gap:10px;font-size:18px}.ops-overview .overall-pill::before{font-size:8px}.ops-overview .overall-pill::after{display:none}.timestamp-board{grid-template-columns:1fr;gap:9px}.timestamp-card{min-height:82px;padding:13px 30px 12px 57px}.timestamp-index{left:13px;top:14px;width:32px;height:32px}.timestamp-arrow{right:20px;top:17px}}
+@media(max-width:680px){.ops-overview{padding:16px 14px 84px;border-radius:16px}.ops-overview .section-mini-head{margin-bottom:14px}.ops-overview .overall-pill{left:14px;right:14px;bottom:14px;height:54px;padding:0 13px;gap:10px;font-size:18px}.ops-overview .overall-pill::before{font-size:8px}.ops-overview .overall-pill::after{display:none}.timestamp-board{grid-template-columns:1fr;gap:9px}.timestamp-card{min-height:82px;padding:13px 30px 12px 57px}.timestamp-index{left:11px;top:14px;width:32px;height:32px;min-width:32px}.timestamp-card small,.timestamp-card strong{margin-left:8px;max-width:calc(100% - 8px)}.timestamp-card strong{font-size:11px}.timestamp-arrow{right:14px;top:17px}}
