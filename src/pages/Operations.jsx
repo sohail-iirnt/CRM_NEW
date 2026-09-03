@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DISPATCH_METHODS, PDI_RESULTS, SHEDS, STATUSES, STATUS_LABELS } from '../config.js'
-import { getModuleFromStatus, getNextStatus, subscribeLogs, subscribeTickets, updateTicket } from '../services.js'
+import { getModuleFromStatus, subscribeLogs, subscribeTickets, updateTicket } from '../services.js'
+import { getNextStatus } from '../workflow.js'
 import { subscribeInspectors } from '../inspectors.js'
 import { useAuth } from '../auth.jsx'
 import TicketDetail, { TicketLink } from '../components/TicketDetail.jsx'
