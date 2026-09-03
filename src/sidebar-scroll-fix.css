@@ -1,0 +1,1 @@
+.sidebar{overflow-y:auto;overflow-x:hidden}.sidebar nav{min-height:0}.sidebar::-webkit-scrollbar{width:6px}.sidebar::-webkit-scrollbar-thumb{border-radius:999px;background:rgba(148,163,184,.18)}@media(max-width:900px){.sidebar{overflow-y:auto}}
