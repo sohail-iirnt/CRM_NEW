@@ -1,0 +1,32 @@
+import { useEffect, useState } from 'react'
+import { findEtaRule, removeEtaRule, saveEtaRule, subscribeEtaRules } from '../etaRules.js'
+import './admin-eta.css'
+
+export default function AdminETA() {
+  const [rules, setRules] = useState([])
+  const [branch, setBranch] = useState('')
+  const [days, setDays] = useState('')
+  const [editing, setEditing] = useState(null)
+  const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
+  useEffect(() => subscribeEtaRules(setRules, error => setMessage(error.message)), [])
+  const reset = () => { setBranch(''); setDays(''); setEditing(null) }
+  const submit = async event => {
+    event.preventDefault(); if (saving) return
+    setSaving(true); setMessage('')
+    try { await saveEtaRule({ id: editing?.id, branch, days }); setMessage(editing ? 'ETA rule updated successfully.' : 'ETA rule added successfully.'); reset() }
+    catch (error) { setMessage(error.message) } finally { setSaving(false) }
+  }
+  const edit = rule => { setEditing(rule); setBranch(rule.branch || ''); setDays(String(rule.days ?? '')); setMessage('') }
+  const remove = async rule => { if (!window.confirm(`Remove ETA rule for ${rule.branch}?`)) return; try { await removeEtaRule(rule.id); setMessage('ETA rule removed.') } catch (error) { setMessage(error.message) } }
+  return <section className="page admin-eta-page">
+    <div className="admin-eta-hero"><div><div className="eyebrow">ADMIN CONTROL CENTER · LOGISTICS</div><h1>Add & Manage ETA</h1><p className="muted">Define expected transit days by destination branch. Branch matching is case-insensitive.</p></div><div className="eta-rule-count"><strong>{rules.length}</strong><span>active rules</span></div></div>
+    <div className="admin-eta-grid">
+      <div className="card eta-rule-form"><div className="card-head"><div><span className="section-kicker">ETA RULE BUILDER</span><h2>{editing ? 'Edit ETA Rule' : 'Add ETA Rule'}</h2><p className="muted">Example: Haridwar → 4 days.</p></div></div>
+        <form className="form-grid" onSubmit={submit}><label>Destination Branch<input value={branch} onChange={e => setBranch(e.target.value)} placeholder="e.g. Haridwar" required /></label><label>Expected ETA (Days)<input type="number" min="0" step="1" value={days} onChange={e => setDays(e.target.value)} placeholder="4" required /></label><div className="form-actions"><button className="primary" disabled={saving}>{saving ? 'Saving…' : editing ? 'Update ETA Rule' : 'Add ETA Rule'}</button>{editing && <button type="button" className="secondary" onClick={reset}>Cancel Edit</button>}</div></form>{message && <div className="notice">{message}</div>}
+      </div>
+      <div className="card eta-rules-list"><div className="card-head"><div><span className="section-kicker">LIVE ETA DIRECTORY</span><h2>Configured Branches</h2><p className="muted">Changes are reflected live in the Logistics Expected ETA queue.</p></div></div><div className="eta-rule-table table-wrap"><table><thead><tr><th>Destination Branch</th><th>ETA</th><th>Match Key</th><th>Actions</th></tr></thead><tbody>{rules.length ? rules.map(rule => <tr key={rule.id}><td className="strong">{rule.branch}</td><td><span className="eta-days">{rule.days} day{Number(rule.days) === 1 ? '' : 's'}</span></td><td className="muted">{rule.branchKey || String(rule.branch || '').toLowerCase()}</td><td><div className="table-actions"><button className="secondary" onClick={() => edit(rule)}>Edit</button><button className="danger" onClick={() => remove(rule)}>Remove</button></div></td></tr>) : <tr><td colSpan="4"><div className="empty-state"><strong>No ETA rules yet.</strong><span>Add a destination branch to activate automatic ETA calculation.</span></div></td></tr>}</tbody></table></div></div>
+    </div>
+    <div className="card eta-rule-note"><strong>How it works</strong><span>If a ticket's Destination Branch matches a configured branch regardless of upper/lower case, Logistics calculates ETA from the ticket's logistics handoff date. If no rule exists, Logistics can move the ticket to In Transit without an ETA and continue with Actual Branch Reporting.</span></div>
+  </section>
+}
