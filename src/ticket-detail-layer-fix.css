@@ -1,0 +1,6 @@
+/* Ticket Detail must sit above the Live Operations chrome. */
+.modal-backdrop{position:fixed!important;inset:0!important;z-index:10000!important;display:flex!important;align-items:flex-start!important;justify-content:center!important;padding:clamp(12px,2vw,28px)!important;box-sizing:border-box!important;isolation:isolate!important;overflow:auto!important}
+.ticket-modal{position:relative!important;z-index:10001!important;max-height:calc(100dvh - clamp(24px,4vw,56px))!important;overflow-y:auto!important;overflow-x:hidden!important;box-sizing:border-box!important;margin:0 auto!important}
+.topbar{position:relative!important;z-index:20!important}
+.sidebar{z-index:30!important}
+@media(max-width:680px){.modal-backdrop{padding:10px!important;align-items:flex-start!important}.ticket-modal{width:min(100%,960px)!important;max-height:calc(100dvh - 20px)!important}}
