@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db, firebaseConfigured } from './firebase.js'
 import { ROLES } from './config.js'
@@ -26,8 +26,6 @@ export function AuthProvider({ children }) {
         const data=snap.data(),roles=normalizeRoles(data),normalized={uid:nextUser.uid,email:data.email||nextUser.email||'',name:data.name||nextUser.displayName||nextUser.email||'User',role:roles.includes(ROLES.ADMIN)?ROLES.ADMIN:(normalizeRole(data.role)||roles[0]),accessRoles:roles,department:normalizeRole(data.department)||normalizeRole(data.role)||roles[0],active:data.active!==false,blocked:data.blocked===true}
         if(!normalized.active||normalized.blocked){setProfile(null);setError(normalized.blocked?'Your account has been blocked by an administrator.':'Your account has been deactivated by an administrator.');setLoading(false);try{await signOut(auth)}catch{};return}
         setProfile(normalized);setLoading(false)
-        // Write the login heartbeat once per authenticated session. Do not write
-        // from every profile snapshot, otherwise the snapshot triggers itself.
         if(!heartbeatWritten){
           heartbeatWritten=true
           try{await setDoc(profileRef,{lastLoginAt:serverTimestamp(),updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Unable to update login timestamp:',e);heartbeatWritten=false}
@@ -37,9 +35,24 @@ export function AuthProvider({ children }) {
     return ()=>{unsubscribeProfile();unsubscribeAuth()}
   },[])
   const login=async(email,password)=>{setError('');if(!auth){const e=new Error('Firebase is not configured. Add VITE_FIREBASE_* values to .env.local.');setError(e.message);throw e}try{await signInWithEmailAndPassword(auth,email.trim(),password)}catch(e){const code=e?.code||'';let message=e?.message||'Unable to sign in.';if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].includes(code))message='Invalid email or password.';else if(code==='auth/too-many-requests')message='Too many unsuccessful attempts. Please try again later.';else if(code==='auth/user-disabled')message='This Firebase account has been disabled.';else if(code==='auth/invalid-email')message='Please enter a valid email address.';setError(message);throw new Error(message)}}
+  const resetPassword=async(email)=>{
+    setError('')
+    if(!auth){const e=new Error('Firebase is not configured. Add VITE_FIREBASE_* values to .env.local.');setError(e.message);throw e}
+    const value=String(email||'').trim()
+    if(!value)throw new Error('Please enter your email address.')
+    try{await sendPasswordResetEmail(auth,value)}catch(e){
+      const code=e?.code||''
+      let message='Unable to send the password reset email.'
+      if(code==='auth/invalid-email')message='Please enter a valid email address.'
+      else if(code==='auth/user-not-found')message='No CRM account was found for this email address.'
+      else if(code==='auth/too-many-requests')message='Too many reset attempts. Please try again later.'
+      else if(e?.message)message=e.message
+      setError(message);throw new Error(message)
+    }
+  }
   const logout=async()=>{setProfile(null);setUser(null);if(auth)await signOut(auth)}
   const hasRole=role=>{if(!profile||profile.blocked===true||profile.active===false)return false;const wanted=normalizeRole(role);return profile.role===ROLES.ADMIN||profile.accessRoles?.includes(ROLES.ADMIN)||profile.role===wanted||profile.accessRoles?.includes(wanted)}
-  const value=useMemo(()=>({user,profile,loading,error,login,logout,hasRole,hasAccess:hasRole,firebaseConfigured}),[user,profile,loading,error])
+  const value=useMemo(()=>({user,profile,loading,error,login,resetPassword,logout,hasRole,hasAccess:hasRole,firebaseConfigured}),[user,profile,loading,error])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 export function useAuth(){return useContext(AuthContext)}
