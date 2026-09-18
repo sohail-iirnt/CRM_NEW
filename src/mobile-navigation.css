@@ -1,130 +1,148 @@
-/* CRM SAIDHARA — mobile drawer v2
-   Mobile navigation owns a dedicated viewport layer. The desktop sidebar
-   remains unchanged. This deliberately overrides older responsive patches.
+/* Mobile navigation stability layer — v3
+   Visual design is intentionally inherited from the existing desktop/mobile UI.
+   This layer only fixes viewport ownership, stacking, scrolling and touch hit-testing.
 */
-
 @media (max-width: 720px) {
   .app-shell {
     position: relative !important;
+    width: 100% !important;
     height: 100dvh !important;
     min-height: 100dvh !important;
     overflow: hidden !important;
   }
 
-  .sidebar {
-    position: fixed !important;
-    inset: 0 auto 0 0 !important;
-    width: min(88vw, 340px) !important;
-    height: 100dvh !important;
-    max-height: none !important;
-    margin: 0 !important;
-    padding: 14px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    transform: translateX(-110%) !important;
-    transition: transform 220ms ease !important;
-    overflow: hidden !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    z-index: 10000 !important;
-    isolation: isolate;
-    will-change: transform;
-  }
-
-  .mobile-nav-open .sidebar {
-    transform: translateX(0) !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  .sidebar .brand {
-    position: relative;
-    z-index: 2;
-    flex: 0 0 auto !important;
-  }
-
-  .sidebar nav {
-    position: relative;
-    z-index: 2;
-    display: flex !important;
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    height: auto !important;
-    max-height: none !important;
-    flex-direction: column !important;
-    gap: 6px !important;
-    width: 100% !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    padding: 10px 8px 24px 4px !important;
-    margin: 0 !important;
-    -webkit-overflow-scrolling: touch !important;
-    overscroll-behavior-y: contain;
-    scrollbar-width: auto;
-    touch-action: pan-y !important;
-  }
-
-  .sidebar nav::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .sidebar nav a,
-  .sidebar nav button {
-    position: relative;
-    z-index: 3;
+  /* Keep the existing hamburger/close visuals; only make their hit areas reliable. */
+  .mobile-nav-toggle,
+  .mobile-nav-close {
     pointer-events: auto !important;
     touch-action: manipulation !important;
     -webkit-tap-highlight-color: transparent;
   }
 
+  .sidebar {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    right: auto !important;
+    width: min(88vw, 340px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+
+    /* Do not fade the actual drawer. */
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+
+    /* Closed state is outside the viewport and cannot steal taps. */
+    transform: translate3d(-105%, 0, 0) !important;
+    pointer-events: none !important;
+
+    overflow: hidden !important;
+    z-index: 10000 !important;
+    isolation: isolate !important;
+    transition: transform 220ms ease !important;
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+
+  .mobile-nav-open .sidebar {
+    transform: translate3d(0, 0, 0) !important;
+    pointer-events: auto !important;
+  }
+
+  /* Preserve the existing drawer appearance; do not apply opacity here. */
+  .sidebar .brand {
+    flex: 0 0 auto !important;
+    position: relative !important;
+    z-index: 2 !important;
+  }
+
+  /*
+   * The nav itself is the ONLY mobile scrolling surface.
+   * Links use pan-y as well, so a finger can start on a link and still scroll
+   * the list; normal taps remain clickable.
+   */
+  .sidebar nav {
+    position: relative !important;
+    z-index: 2 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 10px 8px 24px 4px !important;
+    gap: 6px !important;
+    overflow-y: scroll !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    touch-action: pan-y !important;
+    scrollbar-width: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  .sidebar nav > *,
+  .sidebar nav .nav-group {
+    flex: 0 0 auto !important;
+    min-height: max-content !important;
+  }
+
+  .sidebar nav a,
+  .sidebar nav button {
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 3 !important;
+    touch-action: pan-y !important;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
   .nav-group {
     display: grid !important;
-    flex: 0 0 auto !important;
     width: 100% !important;
-    min-width: 0 !important;
     gap: 3px !important;
   }
 
   .nav-module {
-    min-height: 56px !important;
     width: 100% !important;
+    min-height: 52px !important;
     flex: 0 0 auto !important;
   }
 
   .nav-subpages {
     display: flex !important;
     flex-direction: column !important;
-    flex: 0 0 auto !important;
     width: 100% !important;
     max-height: none !important;
     overflow: visible !important;
-    margin-left: 18px !important;
-    padding: 3px 0 5px 10px !important;
+    flex: 0 0 auto !important;
   }
 
   .nav-subitem {
-    min-height: 46px !important;
     width: 100% !important;
+    min-height: 44px !important;
     flex: 0 0 auto !important;
-    font-size: 14px !important;
-    padding: 10px 10px !important;
-  }
-
-  .nav-subitem > span:not(.sub-num) {
-    width: auto !important;
-    height: auto !important;
-    background: transparent !important;
   }
 
   .role-card {
-    position: relative;
-    z-index: 2;
+    position: relative !important;
+    z-index: 2 !important;
     flex: 0 0 auto !important;
     margin-top: 6px !important;
   }
 
+  /*
+   * Backdrop is beneath the drawer but above the application.
+   * It must never make the drawer itself look dim.
+   */
   .mobile-backdrop {
     position: fixed !important;
     inset: 0 !important;
@@ -156,22 +174,13 @@
     z-index: 100 !important;
   }
 
-  .mobile-nav-toggle {
-    position: relative !important;
-    z-index: 101 !important;
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-  }
-
   body {
-    overflow: hidden;
+    overflow: hidden !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   @media (max-width: 720px) {
-    .sidebar {
-      transition: none !important;
-    }
+    .sidebar { transition: none !important; }
   }
 }
