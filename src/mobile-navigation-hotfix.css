@@ -1,0 +1,158 @@
+/* Mobile navigation hotfix.
+   Keep one drawer implementation active at every breakpoint where the menu
+   toggle is visible. Route changes close the drawer from App.jsx after the
+   router has updated, rather than hiding it before navigation completes.
+*/
+@media (max-width: 900px) {
+  .app-shell {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+
+  .sidebar {
+    display: flex !important;
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    width: min(88vw, 340px) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch;
+    transform: translate3d(-105%, 0, 0) !important;
+    transition: transform .22s ease !important;
+    pointer-events: none !important;
+    z-index: 1100 !important;
+  }
+
+  .mobile-nav-open .sidebar {
+    transform: translate3d(0, 0, 0) !important;
+    pointer-events: auto !important;
+  }
+
+  .mobile-backdrop {
+    display: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(15, 23, 42, .48) !important;
+    touch-action: none;
+    z-index: 1090 !important;
+  }
+
+  .mobile-nav-open .mobile-backdrop {
+    display: block !important;
+  }
+
+  .sidebar nav {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 10px 4px 24px !important;
+  }
+
+  .nav-group {
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 3px !important;
+  }
+
+  .nav-module {
+    width: 100% !important;
+    min-height: 48px !important;
+  }
+
+  .nav-copy small,
+  .nav-chevron {
+    display: initial !important;
+  }
+
+  .nav-subpages {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    margin: 3px 0 4px 12px !important;
+    padding: 3px 0 3px 9px !important;
+    overflow: visible !important;
+  }
+
+  .nav-subitem {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 42px !important;
+    min-width: 0 !important;
+    font-size: 13px !important;
+    touch-action: manipulation;
+  }
+
+  .main {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 900 !important;
+    display: flex !important;
+    min-height: 62px !important;
+    height: auto !important;
+    gap: 12px !important;
+    padding: max(9px, env(safe-area-inset-top)) 14px 9px !important;
+  }
+
+  .mobile-nav-toggle,
+  .mobile-nav-close,
+  .nav-module,
+  .nav-subitem {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .role-card {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    margin-top: auto !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .sidebar {
+    width: min(92vw, 340px) !important;
+  }
+
+  .nav-subitem {
+    min-height: 44px !important;
+    font-size: 13px !important;
+  }
+
+  .topbar-user {
+    max-width: 42vw !important;
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none !important;
+  }
+}
