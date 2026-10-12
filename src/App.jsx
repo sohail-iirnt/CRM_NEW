@@ -23,6 +23,7 @@ import './analytics-polish.css'
 import './mobile-navigation.css'
 import './sidebar-scroll-fix.css'
 import './ticket-detail-layer-fix.css'
+import './mobile-navigation-hotfix.css'
 
 const modules=[[MODULES.CRM,'CRM','Tickets','▦'],[MODULES.WAREHOUSE,'Warehousing','Operations','▤'],[MODULES.PDI,'PDI Inspection','Quality Control','◈'],[MODULES.LOGISTICS,'Logistics','Transport','➜']]
 const defaultPortal=profile=>{if(profile?.role===ROLES.ADMIN||profile?.accessRoles?.includes(ROLES.ADMIN))return'/admin';const roles=Array.isArray(profile?.accessRoles)?profile.accessRoles:[];const first=roles.find(role=>[ROLES.CRM,ROLES.WAREHOUSE,ROLES.PDI,ROLES.LOGISTICS].includes(role));return first?`/${first}`:'/crm'}
