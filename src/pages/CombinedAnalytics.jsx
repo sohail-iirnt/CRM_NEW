@@ -151,7 +151,7 @@ export default function CombinedAnalytics() {
       const duration = stamp(from) && stamp(to) ? Math.max(0, (stamp(to) - stamp(from)) / DAY) : null
       return { ...row, customFrom: from, customTo: to, duration }
     }).filter(row => rule.showMissing || row.duration != null)
-    const labels = [...(rule.buckets || ['0-1','2-3','3-7','7-10','10-15','15+']).map(key => ({'0-1':'0–1 days','2-3':'2–3 days','3-7':'4–7 days','7-10':'8–10 days','10-15':'11–15 days','15+':'16+ days'}[key] || key)), ...(rule.showMissing ? ['Missing event timestamps'] : [])]
+    const labels = [...(rule.buckets || ['0-1','2-3','4-7','8-10','11-15','16+']).map(key => ({'0-1':'0–1 days','2-3':'2–3 days','4-7':'4–7 days','8-10':'8–10 days','11-15':'11–15 days','16+':'16+ days'}[key] || key)), ...(rule.showMissing ? ['Missing event timestamps'] : [])]
     const buckets = labels.map(label => ({label,count:rows.filter(row => customBucket(row.duration) === label).length}))
     return {rule,rows,buckets}
   }),[customRules,data])
