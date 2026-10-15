@@ -88,36 +88,39 @@ export default function CombinedAnalytics() {
     return tickets.map(ticket => {
       const warehouseLog = latestLog(ticket, 'warehouse_movement_completed')
       const pdiLog = latestLog(ticket, 'pdi_inspection_completed')
+      const readyDispatchLog = logs.filter(log => log.ticketId === ticket.id && (log.newStatus === STATUSES.READY_FOR_DISPATCH || log.status === STATUSES.READY_FOR_DISPATCH || log.action === 'ready_for_dispatch' || log.action === 'ticket_ready_for_dispatch')).reduce((best, log) => stamp(log.createdAt) > stamp(best?.createdAt) ? log : best, null)
       const assigned = ticket.ticketAssignedDate || ticket.assignedDate || ticket.createdAt
       const warehouse = warehouseLog?.createdAt || ticket.warehouseMovedAt || ticket.warehouse?.completedAt || ticket.warehouseMovementDate
       const inspection = pdiLog?.createdAt || ticket.pdi?.inspectionDoneDate || ticket.pdi?.inspectedAt || ticket.pdi?.completedAt || ticket.inspectionDoneDate
+      const readyDispatch = readyDispatchLog?.createdAt || (ticket.currentStatus === STATUSES.READY_FOR_DISPATCH ? (ticket.statusChangedAt || ticket.updatedAt) : null) || ticket.readyForDispatchAt || ticket.dispatch?.readyForDispatchAt
       const dispatched = ticket.dispatch?.dispatchedAt || ticket.dispatchedDate || ticket.dispatchDate || ticket.dispatch?.dispatchDate
       const eta = ticket.logistics?.etaDate || ticket.logistics?.expectedEtaDate || ticket.etaDate || ticket.expectedEtaDate
       const actual = ticket.logistics?.actualBranchReportingDate || ticket.actualBranchReportingDate || ticket.branchReportingDate || ticket.actualReportingDate
-      const executionEligible = !isClosed(ticket) && Boolean(stamp(assigned) && stamp(inspection))
+      const executionEligible = Boolean(stamp(assigned) && stamp(readyDispatch))
       const transitEligible = isActiveTransit(ticket)
       const closedEligible = isClosed(ticket) && Boolean(stamp(assigned) && stamp(actual))
       const warehouseDays = daysBetween(assigned, warehouse)
       const pdiDays = daysBetween(warehouse || assigned, inspection)
-      const executionDays = daysBetween(assigned, inspection)
+      const executionDays = daysBetween(assigned, readyDispatch)
       const transitDays = daysBetween(dispatched, actual || new Date())
       const breachDays = stamp(eta) && (stamp(actual || new Date()) > stamp(eta)) ? (stamp(actual || new Date()) - stamp(eta)) / DAY : 0
       const remainingDays = stamp(eta) && !actual ? (stamp(eta) - Date.now()) / DAY : stamp(eta) && stamp(actual) && stamp(actual) <= stamp(eta) ? (stamp(eta) - stamp(actual)) / DAY : null
       const endDays = daysBetween(assigned, actual)
-      return { ticket, d: { assigned, warehouse, inspection, dispatched, eta, actual }, executionEligible, transitEligible, closedEligible, warehouseDays, pdiDays, executionDays, transitDays, breachDays, remainingDays, endDays }
+      return { ticket, d: { assigned, warehouse, inspection, readyDispatch, dispatched, eta, actual }, executionEligible, transitEligible, closedEligible, warehouseDays, pdiDays, executionDays, transitDays, breachDays, remainingDays, endDays }
     })
   }, [tickets, logs])
   const filtered = useMemo(() => data.filter(row => !search || [row.ticket.ticketId, row.ticket.customerName, row.ticket.destinationBranch, row.ticket.itemCode, row.ticket.shed].join(' ').toLowerCase().includes(search.toLowerCase())), [data, search])
   const execution = filtered.filter(row => row.executionEligible)
   const transit = filtered.filter(row => row.transitEligible)
   const closed = filtered.filter(row => row.closedEligible)
-  const executionWarehouseBuckets = countBuckets(execution.filter(row => row.warehouseDays != null), row => bucket3(row.warehouseDays), ['0–1 days', '2–3 days', '3+ days'])
+  const executionWarehouseRows = execution.filter(row => row.ticket.currentStatus === STATUSES.READY_FOR_DISPATCH && row.warehouseDays != null)
+  const executionWarehouseBuckets = countBuckets(executionWarehouseRows, row => bucket3(row.warehouseDays), ['0–1 days', '2–3 days', '3+ days'])
   const executionPdiBuckets = countBuckets(execution.filter(row => row.pdiDays != null), row => bucket3(row.pdiDays), ['0–1 days', '2–3 days', '3+ days'])
   const breachBuckets = countBuckets(transit.filter(row => row.breachDays > 0), row => bucket3(row.breachDays), ['0–1 days', '2–3 days', '3+ days'])
   const remainingBuckets = countBuckets(transit.filter(row => row.breachDays <= 0 && row.remainingDays != null && row.remainingDays >= 0), row => row.remainingDays < 2 ? '1 day' : row.remainingDays < 4 ? '2–3 days' : '3+ days', ['1 day', '2–3 days', '3+ days'])
   const closedBuckets = countBuckets(closed, row => endBucket(row.endDays), ['0–3 days', '3–7 days', '7–10 days', '10–15 days', '15+ days'])
   const combinedBuckets = [
-    { label: 'Execution cycle', count: execution.length, detail: 'Assigned → Inspection done', key: 'execution' },
+    { label: 'Execution cycle', count: execution.length, detail: 'Assigned → Ready for Dispatch', key: 'execution' },
     { label: 'In transit', count: transit.length, detail: 'Dispatch → Actual reporting / current age', key: 'transit' },
     { label: 'Closed end-to-end', count: closed.length, detail: 'Assigned → Actual branch reporting', key: 'closed' },
   ]
@@ -125,7 +128,7 @@ export default function CombinedAnalytics() {
   const openBucket = (group, label) => {
     let rows = []
     if (group === 'combined') rows = label === 'Execution cycle' ? execution : label === 'In transit' ? transit : closed
-    if (group === 'warehouse') rows = execution.filter(row => row.warehouseDays != null && bucket3(row.warehouseDays) === label)
+    if (group === 'warehouse') rows = execution.filter(row => row.ticket.currentStatus === STATUSES.READY_FOR_DISPATCH && row.warehouseDays != null && bucket3(row.warehouseDays) === label)
     if (group === 'pdi') rows = execution.filter(row => row.pdiDays != null && bucket3(row.pdiDays) === label)
     if (group === 'breach') rows = transit.filter(row => row.breachDays > 0 && bucket3(row.breachDays) === label)
     if (group === 'remaining') rows = transit.filter(row => row.breachDays <= 0 && row.remainingDays != null && row.remainingDays >= 0 && (row.remainingDays < 2 ? '1 day' : row.remainingDays < 4 ? '2–3 days' : '3+ days') === label)
@@ -140,12 +143,12 @@ export default function CombinedAnalytics() {
     <section className="ca-overview card"><div className="ca-section-title"><div><span className="ca-kicker">END-TO-END OVERVIEW</span><h2>Combined End to End Cycle</h2><p>Choose a cycle to explore its dedicated aging and breach analytics.</p></div><span className="ca-live-pill">● LIVE</span></div>
       {view === 'chart' ? <div className="ca-combined-grid">{combinedBuckets.map((item,index)=><button key={item.key} className={`ca-combined-card ca-tone-${index} ${mode === item.key ? 'selected' : ''}`} onClick={() => setMode(item.key)}><span className="ca-card-symbol">{['◷','➜','✓'][index]}</span><span className="ca-card-title">{item.label}</span><strong>{item.count}</strong><small>{item.detail}</small><span className="ca-card-link">Open detailed chart <b>↗</b></span></button>)}</div> : <div className="ca-combined-table"><table><thead><tr><th>Cycle</th><th>Timeline</th><th>Tickets</th><th>Action</th></tr></thead><tbody>{combinedBuckets.map(item=><tr key={item.key}><td>{item.label}</td><td>{item.detail}</td><td>{item.count}</td><td><button className="secondary" onClick={() => setMode(item.key)}>View chart</button></td></tr>)}</tbody></table></div>}
     </section>
-    <div className="ca-cycle-buttons"><button className={mode === 'execution' ? 'active execution' : 'execution'} onClick={() => setMode('execution')}><span>01</span><b>View Execution Chart</b><small>Assignment → Inspection</small><i>↗</i></button><button className={mode === 'transit' ? 'active transit' : 'transit'} onClick={() => setMode('transit')}><span>02</span><b>View In Transit Chart</b><small>Dispatch → Actual reporting / ETA</small><i>↗</i></button><button className={mode === 'closed' ? 'active closed' : 'closed'} onClick={() => setMode('closed')}><span>03</span><b>View Closed End to End Chart</b><small>Assignment → Actual reporting</small><i>↗</i></button></div>
-    <div className="ca-detail-head"><div><span className="ca-kicker">DETAILED CYCLE VIEW</span><h2>{title}</h2><p>{mode === 'execution' ? 'Open tickets with both assignment and inspection-completed dates. Closed tickets are excluded.' : mode === 'transit' ? 'Dispatched tickets excluding closed tickets, split by ETA breach and remaining time.' : mode === 'closed' ? 'Closed tickets with a valid assigned date and actual branch reporting date.' : 'Compare the live volume of all three lifecycle stages.'}</p></div><div className="ca-detail-actions"><span className="ca-count">{currentRows.length} tickets</span><button className="ca-export" onClick={() => exportCsv('crm-'+mode+'-analytics-'+new Date().toISOString().slice(0,10)+'.csv', exportRows(currentRows))}>↓ Export CSV</button></div></div>
+    <div className="ca-cycle-buttons"><button className={mode === 'execution' ? 'active execution' : 'execution'} onClick={() => setMode('execution')}><span>01</span><b>View Execution Chart</b><small>Assignment → Ready for Dispatch</small><i>↗</i></button><button className={mode === 'transit' ? 'active transit' : 'transit'} onClick={() => setMode('transit')}><span>02</span><b>View In Transit Chart</b><small>Dispatch → Actual reporting / ETA</small><i>↗</i></button><button className={mode === 'closed' ? 'active closed' : 'closed'} onClick={() => setMode('closed')}><span>03</span><b>View Closed End to End Chart</b><small>Assignment → Actual reporting</small><i>↗</i></button></div>
+    <div className="ca-detail-head"><div><span className="ca-kicker">DETAILED CYCLE VIEW</span><h2>{title}</h2><p>{mode === 'execution' ? 'Tickets with assignment and Ready for Dispatch timestamps. The Warehouse bucket includes only tickets currently in Ready for Dispatch status.' : mode === 'transit' ? 'Dispatched tickets excluding closed tickets, split by ETA breach and remaining time.' : mode === 'closed' ? 'Closed tickets with a valid assigned date and actual branch reporting date.' : 'Compare the live volume of all three lifecycle stages.'}</p></div><div className="ca-detail-actions"><span className="ca-count">{currentRows.length} tickets</span><button className="ca-export" onClick={() => exportCsv('crm-'+mode+'-analytics-'+new Date().toISOString().slice(0,10)+'.csv', exportRows(currentRows))}>↓ Export CSV</button></div></div>
     {loadError && <div className="notice">{loadError}</div>}
     {view === 'chart' ? <div className="ca-charts-grid">
       {mode === 'combined' && <BucketChart title="Combined cycle population" subtitle="Click a lifecycle segment to see the matching tickets." buckets={combinedBuckets.map(item => ({ label: item.label, count: item.count }))} onPick={label => openBucket('combined', label)} chartType={chartType} />}
-      {(mode === 'execution') && <><BucketChart title="Warehouse bucket" subtitle="Ticket assigned date → warehouse movement completed." buckets={executionWarehouseBuckets} onPick={label => openBucket('warehouse', label)} chartType={chartType} color="#4e6df5"/><BucketChart title="PDI bucket" subtitle="Warehouse movement completed → PDI inspection done." buckets={executionPdiBuckets} onPick={label => openBucket('pdi', label)} chartType={chartType} color="#11a98a"/></>}
+      {(mode === 'execution') && <><BucketChart title="Warehouse bucket" subtitle="Only tickets currently in Ready for Dispatch status; grouped by assigned date → warehouse movement completed." buckets={executionWarehouseBuckets} onPick={label => openBucket('warehouse', label)} chartType={chartType} color="#4e6df5"/><BucketChart title="PDI bucket" subtitle="Warehouse movement completed → PDI inspection done." buckets={executionPdiBuckets} onPick={label => openBucket('pdi', label)} chartType={chartType} color="#11a98a"/></>}
       {mode === 'transit' && <><BucketChart title="ETA breach aging" subtitle="Late tickets, bucketed by days beyond the promised ETA." buckets={breachBuckets} onPick={label => openBucket('breach', label)} chartType={chartType} color="#d95d76"/><BucketChart title="Time remaining to ETA" subtitle="Non-breached transit tickets bucketed by time left before ETA." buckets={remainingBuckets} onPick={label => openBucket('remaining', label)} chartType={chartType} color="#11a98a"/></>}
       {mode === 'closed' && <BucketChart title="Closed end-to-end aging" subtitle="Assignment date → actual branch reporting date." buckets={closedBuckets} onPick={label => openBucket('closed', label)} chartType={chartType} color="#8b68d9"/>}
     </div> : <div className="card ca-table-card"><div className="ca-table-heading"><h3>{title} · Ticket register</h3><span>Click a ticket ID to open its details.</span></div><TicketTable rows={currentRows} onTicket={setDetail}/></div>}
