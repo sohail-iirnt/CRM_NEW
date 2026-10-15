@@ -137,6 +137,23 @@ export default function CombinedAnalytics() {
   const execution = filtered.filter(row => row.executionEligible)
   const transit = filtered.filter(row => row.transitEligible)
   const closed = filtered.filter(row => row.closedEligible)
+  const customAnalytics = useMemo(() => customRules.filter(rule => rule.enabled !== false).map(rule => {
+    const scopes = rule.scopes || ['all']
+    const population = data.filter(row => scopes.includes('all') || (
+      (scopes.includes('active') && !isClosed(row.ticket)) ||
+      (scopes.includes('in_transit') && row.ticket.currentStatus === STATUSES.IN_TRANSIT) ||
+      (scopes.includes('closed') && isClosed(row.ticket))
+    ))
+    const rows = population.map(row => {
+      const from = row.eventTimes?.[rule.from]
+      const to = row.eventTimes?.[rule.to]
+      const duration = stamp(from) && stamp(to) ? Math.max(0, (stamp(to) - stamp(from)) / DAY) : null
+      return { ...row, customFrom: from, customTo: to, duration }
+    }).filter(row => rule.showMissing || row.duration != null)
+    const labels = [...(rule.buckets || ['0-1','2-3','3-7','7-10','10-15','15+']).map(key => ({'0-1':'0–1 days','2-3':'2–3 days','3-7':'4–7 days','7-10':'8–10 days','10-15':'11–15 days','15+':'16+ days'}[key] || key)), ...(rule.showMissing ? ['Missing event timestamps'] : [])]
+    const buckets = labels.map(label => ({label,count:rows.filter(row => customBucket(row.duration) === label).length}))
+    return {rule,rows,buckets}
+  }),[customRules,data])
   const executionWarehouseBuckets = countBuckets(execution.filter(row => row.warehouseDays != null), row => bucket3(row.warehouseDays), ['0–1 days', '2–3 days', '3+ days'])
   const executionPdiBuckets = countBuckets(execution.filter(row => row.pdiDays != null), row => bucket3(row.pdiDays), ['0–1 days', '2–3 days', '3+ days'])
   const breachBuckets = countBuckets(transit.filter(row => row.breachDays > 0), row => bucket3(row.breachDays), ['0–1 days', '2–3 days', '3+ days'])
@@ -148,6 +165,7 @@ export default function CombinedAnalytics() {
     { label: 'Closed end-to-end', count: closed.length, detail: 'Assigned → Actual branch reporting', key: 'closed' },
   ]
   const currentRows = mode === 'execution' ? execution : mode === 'transit' ? transit : mode === 'closed' ? closed : filtered
+  const openCustomBucket = (item, label) => setDrill({ title: item.rule.name+' · '+label, rows: item.rows.filter(row => customBucket(row.duration) === label) })
   const openBucket = (group, label) => {
     let rows = []
     if (group === 'combined') rows = label === 'Execution cycle' ? execution : label === 'In transit' ? transit : closed
