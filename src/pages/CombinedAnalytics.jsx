@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { STATUSES, STATUS_LABELS } from '../config.js'
-import { subscribeLogs, subscribeTickets } from '../services.js'
+import { subscribeAnalyticsRules, subscribeLogs, subscribeTickets } from '../services.js'
 import TicketDetail, { TicketLink } from '../components/TicketDetail.jsx'
 import './combined-analytics.css'
 
@@ -24,6 +24,8 @@ const isActiveTransit = ticket => !isClosed(ticket) && Boolean(ticket.dispatch?.
 const ticketName = ticket => ticket.ticketId || ticket.id
 const bucket3 = n => n == null ? 'Missing dates' : n < 2 ? '0–1 days' : n < 3 ? '2–3 days' : '3+ days'
 const endBucket = n => n == null ? 'Missing dates' : n <= 3 ? '0–3 days' : n <= 7 ? '3–7 days' : n <= 10 ? '7–10 days' : n <= 15 ? '10–15 days' : '15+ days'
+const customBucket = n => n == null || !Number.isFinite(n) ? 'Missing event timestamps' : n < 2 ? '0–1 days' : n < 4 ? '2–3 days' : n < 8 ? '4–7 days' : n < 11 ? '8–10 days' : n < 16 ? '11–15 days' : '16+ days'
+const CUSTOM_BUCKET_LABELS = ['0–1 days','2–3 days','4–7 days','8–10 days','11–15 days','16+ days','Missing event timestamps']
 const colors = ['#4e6df5', '#11a98a', '#f0a43c', '#d95d76', '#8b68d9']
 const esc = value => String(value ?? '').replace(/"/g, '""')
 function exportCsv(filename, rows) {
@@ -73,6 +75,8 @@ function countBuckets(rows, key, labels) {
 export default function CombinedAnalytics() {
   const [tickets, setTickets] = useState([])
   const [logs, setLogs] = useState([])
+  const [customRules, setCustomRules] = useState([])
+  const [analyticsMode, setAnalyticsMode] = useState('system')
   const [view, setView] = useState('chart')
   const [chartType, setChartType] = useState('bar')
   const [mode, setMode] = useState('combined')
@@ -82,10 +86,14 @@ export default function CombinedAnalytics() {
   const [loadError, setLoadError] = useState('')
   useEffect(() => subscribeTickets(setTickets, error => setLoadError(error?.message || 'Could not load live tickets.')), [])
   useEffect(() => subscribeLogs(setLogs, error => setLoadError(error?.message || 'Could not load ticket audit dates.')), [])
+  useEffect(() => subscribeAnalyticsRules(setCustomRules, error => setLoadError(error?.message || 'Could not load custom analytics rules.')), [])
 
   const data = useMemo(() => {
     const latestLog = (ticket, action) => logs.filter(log => log.ticketId === ticket.id && log.action === action).reduce((best, log) => stamp(log.createdAt) > stamp(best?.createdAt) ? log : best, null)
     return tickets.map(ticket => {
+      const eventLogs = logs.filter(log => log.ticketId === ticket.id)
+      const latestMatching = (...terms) => eventLogs.filter(log => terms.some(term => String(log.action || '').toLowerCase().includes(term))).reduce((best, log) => stamp(log.createdAt) > stamp(best?.createdAt) ? log : best, null)
+      const statusAt = status => eventLogs.filter(log => log.newStatus === status).reduce((best, log) => stamp(log.createdAt) > stamp(best?.createdAt) ? log : best, null)?.createdAt || (ticket.currentStatus === status ? ticket.statusChangedAt : null)
       const warehouseLog = latestLog(ticket, 'warehouse_movement_completed')
       const pdiLog = latestLog(ticket, 'pdi_inspection_completed')
       const assigned = ticket.ticketAssignedDate || ticket.assignedDate || ticket.createdAt
@@ -94,6 +102,24 @@ export default function CombinedAnalytics() {
       const dispatched = ticket.dispatch?.dispatchedAt || ticket.dispatchedDate || ticket.dispatchDate || ticket.dispatch?.dispatchDate
       const eta = ticket.logistics?.etaDate || ticket.logistics?.expectedEtaDate || ticket.etaDate || ticket.expectedEtaDate
       const actual = ticket.logistics?.actualBranchReportingDate || ticket.actualBranchReportingDate || ticket.branchReportingDate || ticket.actualReportingDate
+      const eventTimes = {
+        ticket_created: ticket.createdAt || latestMatching('ticket_created')?.createdAt,
+        ticket_assigned: ticket.ticketAssignedDate || ticket.assignedDate || latestMatching('ticket_assigned','assigned')?.createdAt,
+        warehouse_movement_completed: warehouse,
+        received_for_pdi: latestMatching('received_for_pdi','pdi_queue','ready_for_pdi')?.createdAt || statusAt(STATUSES.READY_FOR_PDI),
+        forward_order_completed: latestMatching('forward_order_completed','forwarding_order_completed')?.createdAt,
+        pdi_inspection_completed: inspection,
+        new_batch_provided: latestMatching('new_batch_provided','batch_provided','reinspection_batch')?.createdAt,
+        no_more_stock_available: latestMatching('no_more_stock_available','no_stock_reported','warehouse_no_stock')?.createdAt,
+        warehouse_dispatch_completed: dispatched,
+        logistics_updated: ticket.logistics?.updatedAt || ticket.logisticsUpdatedAt || latestMatching('logistics_updated','eta_updated')?.createdAt,
+        in_transit: statusAt(STATUSES.IN_TRANSIT),
+        eta,
+        actual_branch_reporting: actual,
+        ticket_closed: statusAt(STATUSES.CLOSED) || (isClosed(ticket) ? ticket.statusChangedAt : null),
+        pdi_no_stock_ticket_closed: latestMatching('pdi_no_stock_ticket_closed')?.createdAt || (ticket.pdi?.closedReason === 'no_stock' ? ticket.pdi?.completedAt : null)
+      }
+      for (const statusKey of Object.values(STATUSES)) eventTimes['status:'+statusKey] = statusAt(statusKey)
       const executionEligible = !isClosed(ticket) && Boolean(stamp(assigned) && stamp(inspection))
       const transitEligible = isActiveTransit(ticket)
       const closedEligible = isClosed(ticket) && Boolean(stamp(assigned) && stamp(actual))
@@ -104,7 +130,7 @@ export default function CombinedAnalytics() {
       const breachDays = stamp(eta) && (stamp(actual || new Date()) > stamp(eta)) ? (stamp(actual || new Date()) - stamp(eta)) / DAY : 0
       const remainingDays = stamp(eta) && !actual ? (stamp(eta) - Date.now()) / DAY : stamp(eta) && stamp(actual) && stamp(actual) <= stamp(eta) ? (stamp(eta) - stamp(actual)) / DAY : null
       const endDays = daysBetween(assigned, actual)
-      return { ticket, d: { assigned, warehouse, inspection, dispatched, eta, actual }, executionEligible, transitEligible, closedEligible, warehouseDays, pdiDays, executionDays, transitDays, breachDays, remainingDays, endDays }
+      return { ticket, d: { assigned, warehouse, inspection, dispatched, eta, actual }, eventTimes, executionEligible, transitEligible, closedEligible, warehouseDays, pdiDays, executionDays, transitDays, breachDays, remainingDays, endDays }
     })
   }, [tickets, logs])
   const filtered = useMemo(() => data.filter(row => !search || [row.ticket.ticketId, row.ticket.customerName, row.ticket.destinationBranch, row.ticket.itemCode, row.ticket.shed].join(' ').toLowerCase().includes(search.toLowerCase())), [data, search])
