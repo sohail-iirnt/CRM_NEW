@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { STATUS_LABELS, STATUSES } from '../config.js'
 import { useAuth } from '../auth.jsx'
 import { saveAnalyticsRules, subscribeAnalyticsRules } from '../services.js'
+import './analytics-rules.css'
 
 const EVENTS = [
   ['ticket_created','Ticket Created'],['ticket_assigned','Ticket Assigned Date'],['warehouse_movement_completed','Warehousing Movement'],['received_for_pdi','Received for PDI'],['forward_order_completed','Forward Order Completed'],['pdi_inspection_completed','Inspection Done'],['new_batch_provided','New Batch Provided'],['no_more_stock_available','No More Stock Available'],['warehouse_dispatch_completed','Dispatch Done'],['logistics_updated','Logistics Updated'],['in_transit','In Transit'],['eta','ETA'],['actual_branch_reporting','Actual Branch Reporting'],['ticket_closed','Ticket Closed'],['pdi_no_stock_ticket_closed','PDI Confirmed No Stock / Ticket Closed'],
