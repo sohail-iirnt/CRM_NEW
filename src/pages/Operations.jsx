@@ -43,6 +43,33 @@ function useData() {
   return { tickets, logs }
 }
 
+
+function exportHistoryCsv(filename, rows) {
+  const quote = value => '"' + String(value ?? '').replace(/"/g, '""') + '"'
+  const csv = rows.map(row => row.map(quote).join(',')).join('\r\n')
+  const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+function exportPdiHistoryPdf(title, rows, logs) {
+  const win = window.open('', '_blank', 'width=1200,height=850')
+  if (!win) { window.alert('Please allow pop-ups to export the PDF report.'); return }
+  const esc = value => String(value ?? '—').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]))
+  const fmt = value => value?.toDate ? value.toDate().toLocaleString('en-IN') : value ? new Date(value).toLocaleString('en-IN') : '—'
+  const body = rows.map(ticket => {
+    const activity = logs.filter(log => log.ticketId === ticket.id)
+    const latest = activity.reduce((best, log) => tv(log.createdAt) > tv(best?.createdAt) ? log : best, null)
+    const pdiDone = activity.filter(log => log.action === 'pdi_inspection_completed').reduce((best, log) => tv(log.createdAt) > tv(best?.createdAt) ? log : best, null)
+    return '<tr><td>' + esc(ticket.ticketId || ticket.id) + '</td><td>' + esc(ticket.itemCode) + '</td><td>' + esc(ticket.shed) + '</td><td>' + esc(STATUS_LABELS[ticket.currentStatus] || ticket.currentStatus) + '</td><td>' + activity.length + '</td><td>' + esc(latest?.action) + '</td><td>' + esc(fmt(latest?.createdAt)) + '</td><td>' + esc(fmt(pdiDone?.createdAt)) + '</td></tr>'
+  }).join('')
+  win.document.write('<!doctype html><html><head><title>' + esc(title) + ' History & Audit</title><style>body{font:12px Arial,sans-serif;color:#172033;padding:28px}h1{font-size:23px;margin:0 0 6px}p{color:#65738b;margin:0 0 22px}.meta{display:flex;justify-content:space-between;margin-bottom:14px;font-size:11px;color:#566783}table{width:100%;border-collapse:collapse}th{background:#eaf0fb;text-align:left;font-size:10px;text-transform:uppercase}td,th{padding:9px;border:1px solid #dfe5ef;vertical-align:top}tr:nth-child(even){background:#f8faff}@media print{body{padding:0}@page{size:landscape;margin:12mm}}</style></head><body><h1>CRM SAIDHARA · ' + esc(title) + ' History & Audit</h1><p>Filtered audit register with inspection completion timestamps.</p><div class="meta"><span>Generated: ' + esc(new Date().toLocaleString('en-IN')) + '</span><strong>' + rows.length + ' tickets</strong></div><table><thead><tr><th>Ticket</th><th>Item Code</th><th>Shed</th><th>Status</th><th>Actions</th><th>Latest Action</th><th>Latest Timestamp</th><th>PDI Completed At</th></tr></thead><tbody>' + body + '</tbody></table><script>window.onload=()=>window.print()</script></body></html>')
+  win.document.close()
+}
+
 function History({ module, title, tickets, logs, onOpen }) {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
@@ -69,6 +96,7 @@ function History({ module, title, tickets, logs, onOpen }) {
       <h1>{title} History</h1>
       <p className="muted">Department history with search, status, action and date filters.</p>
       <div className="card">
+        {module === 'pdi' && <div className="history-export-actions"><div><strong>PDI History Exports</strong><small>Download the filtered history or print a PDF report.</small></div><div><button className="secondary" onClick={() => exportHistoryCsv('crm-pdi-history-' + new Date().toISOString().slice(0, 10) + '.csv', [['Ticket','Item Code','Shed','Status','Action Count','Latest Action','Latest Timestamp','PDI Completed At'], ...rows.map(ticket => { const activity = departmentLogs.filter(log => log.ticketId === ticket.id); const latest = activity.reduce((best, log) => tv(log.createdAt) > tv(best?.createdAt) ? log : best, null); const pdiDone = activity.filter(log => log.action === 'pdi_inspection_completed').reduce((best, log) => tv(log.createdAt) > tv(best?.createdAt) ? log : best, null); const fmt = value => value?.toDate ? value.toDate().toISOString() : value ? new Date(value).toISOString() : ''; return [ticket.ticketId || ticket.id, ticket.itemCode, ticket.shed, STATUS_LABELS[ticket.currentStatus] || ticket.currentStatus, activity.length, latest?.action, fmt(latest?.createdAt), fmt(pdiDone?.createdAt)] })])}>↓ Export CSV</button><button className="primary" onClick={() => exportPdiHistoryPdf(title, rows, departmentLogs)}>▤ Export PDF</button></div></div>}
         <div className="filter-bar">
           <input placeholder="Search ticket, customer, branch, item, shed…" value={search} onChange={event => setSearch(event.target.value)} />
           <select value={status} onChange={event => setStatus(event.target.value)}><option value="all">All statuses</option>{Object.entries(STATUS_LABELS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select>
