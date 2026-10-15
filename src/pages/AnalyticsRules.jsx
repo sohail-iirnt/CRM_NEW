@@ -9,7 +9,7 @@ const EVENTS = [
   ...Object.entries(STATUS_LABELS).map(([key,label])=>['status:'+key,'Status: '+label])
 ]
 const SCOPES=[['all','All Tickets'],['active','Active / Open'],['in_transit','In Transit'],['closed','Closed']]
-const BUCKETS=[['0-1','0–1 days',0,1],['2-3','2–3 days',1,3],['3-7','3–7 days',3,7],['7-10','7–10 days',7,10],['10-15','10–15 days',10,15],['15+','15+ days',15,Infinity]]
+const BUCKETS=[['0-1','0–1 days',0,2],['2-3','2–3 days',2,4],['4-7','4–7 days',4,8],['8-10','8–10 days',8,11],['11-15','11–15 days',11,16],['16+','16+ days',16,Infinity]]
 const fresh=()=>({id:'rule-'+Date.now().toString(36),name:'Custom cycle',from:'ticket_assigned',to:'pdi_inspection_completed',scopes:['all'],buckets:['0-1','2-3','3-7','7-10','10-15','15+'],enabled:true,chartType:'pie',showMissing:false})
 export default function AnalyticsRules(){
  const {profile}=useAuth();const[rules,setRules]=useState([]),[draft,setDraft]=useState(fresh),[saving,setSaving]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
