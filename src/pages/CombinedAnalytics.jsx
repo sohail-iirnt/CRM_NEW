@@ -35,13 +35,25 @@ function exportCsv(filename, rows) {
   link.click()
   URL.revokeObjectURL(url)
 }
-function BucketChart({ title, subtitle, buckets, onPick, color = '#4e6df5', emptyText = 'No tickets in this bucket yet' }) {
+function BucketChart({ title, subtitle, buckets, onPick, chartType = 'bar', color = '#4e6df5', emptyText = 'No tickets in this bucket yet' }) {
   const max = Math.max(1, ...buckets.map(item => item.count))
+  const total = buckets.reduce((sum, item) => sum + item.count, 0)
+  const gradient = (() => {
+    let cursor = 0
+    return buckets.map((item, index) => {
+      const start = cursor
+      cursor += total ? item.count / total * 100 : 0
+      return `${colors[index % colors.length] || color} ${start}% ${cursor}%`
+    }).join(', ')
+  })()
   return <section className="ca-chart-card">
-    <div className="ca-chart-heading"><div><span className="ca-kicker">CLICK A BUCKET TO DRILL DOWN</span><h3>{title}</h3><p>{subtitle}</p></div><span className="ca-total">{buckets.reduce((sum, item) => sum + item.count, 0)} tickets</span></div>
-    <div className="ca-bars">{buckets.map((item, index) => <button className="ca-bar-row" key={item.label} onClick={() => onPick(item.label)} title={`Open ${item.count} tickets in ${item.label}`}>
-      <span className="ca-bar-label">{item.label}</span><span className="ca-bar-track"><i style={{ width: `${item.count / max * 100}%`, background: colors[index % colors.length] || color }} /></span><strong>{item.count}</strong><span className="ca-bar-percent">{Math.round(item.count / Math.max(1, buckets.reduce((sum, b) => sum + b.count, 0)) * 100)}%</span>
-    </button>)}</div>
+    <div className="ca-chart-heading"><div><span className="ca-kicker">CLICK A BUCKET TO DRILL DOWN</span><h3>{title}</h3><p>{subtitle}</p></div><span className="ca-total">{total} tickets</span></div>
+    {chartType === 'pie' ? <div className="ca-pie-layout">
+      <div className="ca-pie" role="img" aria-label={`${title}: ${total} tickets distributed across ${buckets.length} buckets`} style={{ background: total ? `conic-gradient(${gradient})` : '#edf1f7' }}><div><strong>{total}</strong><span>tickets</span></div></div>
+      <div className="ca-pie-legend">{buckets.map((item, index) => <button type="button" className="ca-pie-legend-row" key={item.label} onClick={() => onPick(item.label)}><i style={{ background: colors[index % colors.length] || color }}/><span>{item.label}</span><strong>{item.count}</strong><small>{Math.round(item.count / Math.max(1, total) * 100)}%</small></button>)}</div>
+    </div> : <div className="ca-bars">{buckets.map((item, index) => <button type="button" className="ca-bar-row" key={item.label} onClick={() => onPick(item.label)} title={`Open ${item.count} tickets in ${item.label}`}>
+      <span className="ca-bar-label">{item.label}</span><span className="ca-bar-track"><i style={{ width: `${item.count / max * 100}%`, background: colors[index % colors.length] || color }} /></span><strong>{item.count}</strong><span className="ca-bar-percent">{Math.round(item.count / Math.max(1, total) * 100)}%</span>
+    </button>)}</div>}
     {buckets.every(item => item.count === 0) && <div className="ca-empty">{emptyText}</div>}
   </section>
 }
@@ -62,6 +74,7 @@ export default function CombinedAnalytics() {
   const [tickets, setTickets] = useState([])
   const [logs, setLogs] = useState([])
   const [view, setView] = useState('chart')
+  const [chartType, setChartType] = useState('bar')
   const [mode, setMode] = useState('combined')
   const [drill, setDrill] = useState(null)
   const [detail, setDetail] = useState(null)
@@ -123,7 +136,7 @@ export default function CombinedAnalytics() {
   const title = mode === 'execution' ? 'Execution Chart' : mode === 'transit' ? 'In Transit Chart' : mode === 'closed' ? 'Closed End-to-End Chart' : 'Combined End-to-End Cycle'
   return <section className="page ca-page">
     <div className="ca-hero"><div><span className="ca-kicker">CRM SAIDHARA · OPERATIONS INTELLIGENCE</span><h1>Analytics <span>(New)</span></h1><p>One live view of execution, transit risk and completed end-to-end turnaround.</p><div className="ca-hero-meta"><span><i/> LIVE TICKET DATA</span><b>{tickets.length} total tickets</b><b>{logs.length} audit events</b></div></div><div className="ca-hero-art" aria-hidden="true"><div className="ca-art-ring ring-one"/><div className="ca-art-ring ring-two"/><div className="ca-art-core">↗</div><span className="ca-art-dot dot-one"/><span className="ca-art-dot dot-two"/><span className="ca-art-dot dot-three"/></div></div>
-    <div className="ca-toolbar"><label className="ca-search"><span>⌕</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search ticket, customer, shed or branch…"/></label><div className="ca-view-switch"><button className={view === 'chart' ? 'active' : ''} onClick={() => setView('chart')}>▥ View as Chart / Graph</button><button className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}>▤ View as Table</button></div></div>
+    <div className="ca-toolbar"><label className="ca-search"><span>⌕</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search ticket, customer, shed or branch…"/></label><div className="ca-view-switch"><button className={view === 'chart' && chartType === 'bar' ? 'active' : ''} onClick={() => { setView('chart'); setChartType('bar') }}>▥ Bar Chart</button><button className={view === 'chart' && chartType === 'pie' ? 'active' : ''} onClick={() => { setView('chart'); setChartType('pie') }}>◔ Pie Chart</button><button className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}>▤ Table</button></div></div>
     <section className="ca-overview card"><div className="ca-section-title"><div><span className="ca-kicker">END-TO-END OVERVIEW</span><h2>Combined End to End Cycle</h2><p>Choose a cycle to explore its dedicated aging and breach analytics.</p></div><span className="ca-live-pill">● LIVE</span></div>
       {view === 'chart' ? <div className="ca-combined-grid">{combinedBuckets.map((item,index)=><button key={item.key} className={`ca-combined-card ca-tone-${index} ${mode === item.key ? 'selected' : ''}`} onClick={() => setMode(item.key)}><span className="ca-card-symbol">{['◷','➜','✓'][index]}</span><span className="ca-card-title">{item.label}</span><strong>{item.count}</strong><small>{item.detail}</small><span className="ca-card-link">Open detailed chart <b>↗</b></span></button>)}</div> : <div className="ca-combined-table"><table><thead><tr><th>Cycle</th><th>Timeline</th><th>Tickets</th><th>Action</th></tr></thead><tbody>{combinedBuckets.map(item=><tr key={item.key}><td>{item.label}</td><td>{item.detail}</td><td>{item.count}</td><td><button className="secondary" onClick={() => setMode(item.key)}>View chart</button></td></tr>)}</tbody></table></div>}
     </section>
@@ -131,10 +144,10 @@ export default function CombinedAnalytics() {
     <div className="ca-detail-head"><div><span className="ca-kicker">DETAILED CYCLE VIEW</span><h2>{title}</h2><p>{mode === 'execution' ? 'Open tickets with both assignment and inspection-completed dates. Closed tickets are excluded.' : mode === 'transit' ? 'Dispatched tickets excluding closed tickets, split by ETA breach and remaining time.' : mode === 'closed' ? 'Closed tickets with a valid assigned date and actual branch reporting date.' : 'Compare the live volume of all three lifecycle stages.'}</p></div><div className="ca-detail-actions"><span className="ca-count">{currentRows.length} tickets</span><button className="ca-export" onClick={() => exportCsv('crm-'+mode+'-analytics-'+new Date().toISOString().slice(0,10)+'.csv', exportRows(currentRows))}>↓ Export CSV</button></div></div>
     {loadError && <div className="notice">{loadError}</div>}
     {view === 'chart' ? <div className="ca-charts-grid">
-      {mode === 'combined' && <BucketChart title="Combined cycle population" subtitle="Click a lifecycle segment to see the matching tickets." buckets={combinedBuckets.map(item => ({ label: item.label, count: item.count }))} onPick={label => openBucket('combined', label)} />}
-      {(mode === 'execution') && <><BucketChart title="Warehouse bucket" subtitle="Ticket assigned date → warehouse movement completed." buckets={executionWarehouseBuckets} onPick={label => openBucket('warehouse', label)} color="#4e6df5"/><BucketChart title="PDI bucket" subtitle="Warehouse movement completed → PDI inspection done." buckets={executionPdiBuckets} onPick={label => openBucket('pdi', label)} color="#11a98a"/></>}
-      {mode === 'transit' && <><BucketChart title="ETA breach aging" subtitle="Late tickets, bucketed by days beyond the promised ETA." buckets={breachBuckets} onPick={label => openBucket('breach', label)} color="#d95d76"/><BucketChart title="Time remaining to ETA" subtitle="Non-breached transit tickets bucketed by time left before ETA." buckets={remainingBuckets} onPick={label => openBucket('remaining', label)} color="#11a98a"/></>}
-      {mode === 'closed' && <BucketChart title="Closed end-to-end aging" subtitle="Assignment date → actual branch reporting date." buckets={closedBuckets} onPick={label => openBucket('closed', label)} color="#8b68d9"/>}
+      {mode === 'combined' && <BucketChart title="Combined cycle population" subtitle="Click a lifecycle segment to see the matching tickets." buckets={combinedBuckets.map(item => ({ label: item.label, count: item.count }))} onPick={label => openBucket('combined', label)} chartType={chartType} />}
+      {(mode === 'execution') && <><BucketChart title="Warehouse bucket" subtitle="Ticket assigned date → warehouse movement completed." buckets={executionWarehouseBuckets} onPick={label => openBucket('warehouse', label)} chartType={chartType} color="#4e6df5"/><BucketChart title="PDI bucket" subtitle="Warehouse movement completed → PDI inspection done." buckets={executionPdiBuckets} onPick={label => openBucket('pdi', label)} chartType={chartType} color="#11a98a"/></>}
+      {mode === 'transit' && <><BucketChart title="ETA breach aging" subtitle="Late tickets, bucketed by days beyond the promised ETA." buckets={breachBuckets} onPick={label => openBucket('breach', label)} chartType={chartType} color="#d95d76"/><BucketChart title="Time remaining to ETA" subtitle="Non-breached transit tickets bucketed by time left before ETA." buckets={remainingBuckets} onPick={label => openBucket('remaining', label)} chartType={chartType} color="#11a98a"/></>}
+      {mode === 'closed' && <BucketChart title="Closed end-to-end aging" subtitle="Assignment date → actual branch reporting date." buckets={closedBuckets} onPick={label => openBucket('closed', label)} chartType={chartType} color="#8b68d9"/>}
     </div> : <div className="card ca-table-card"><div className="ca-table-heading"><h3>{title} · Ticket register</h3><span>Click a ticket ID to open its details.</span></div><TicketTable rows={currentRows} onTicket={setDetail}/></div>}
     <div className="ca-footnote">Aging is calculated from saved workflow timestamps. In-transit tickets that have passed ETA are counted as breached using today’s date until actual reporting is recorded.</div>
     {drill && <DrillModal title={drill.title} rows={drill.rows} onClose={() => setDrill(null)} onTicket={setDetail}/>}
