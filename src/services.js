@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, where, writeBatch } from 'firebase/firestore'
+import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore'
 import { auth, db } from './firebase.js'
 import { resolveWorkflow, getInitialStatus, getNextStatus } from './workflow.js'
 export const TICKETS='tickets'
@@ -19,3 +19,6 @@ function buildLog({action,ticketId='',details='',actor,module='',previousStatus=
 export function subscribeTicketActivity(ticketId,callback,onError){if(!db||!ticketId)return()=>{};return onSnapshot(query(collection(db,LOGS),where('ticketId','==',ticketId)),snap=>callback(snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>timestampValue(a.createdAt)-timestampValue(b.createdAt))),onError)}
 export function subscribeLogs(callback,onError){if(!db)return()=>{};return onSnapshot(query(collection(db,LOGS)),snap=>callback(snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>timestampValue(b.createdAt)-timestampValue(a.createdAt))),error=>{console.error('System log subscription error:',error);onError?.(error)})}
 export function getModuleFromStatus(status){switch(status){case 'pending_warehouse':case 'ready_for_dispatch':return'warehouse';case 'ready_for_pdi':return'pdi';case 'forward_order_pending':return'crm';case 'logistics_pending':case 'in_transit':return'logistics';case 'closed':return'completed';default:return null}}
+
+export function subscribeAnalyticsRules(callback,onError){if(!db)return()=>{};return onSnapshot(doc(db,'settings','analyticsRules'),snap=>callback(snap.exists()&&Array.isArray(snap.data().rules)?snap.data().rules:[]),error=>{console.error('Analytics rules subscription error:',error);onError?.(error)})}
+export async function saveAnalyticsRules(rules,actor){if(!db)throw new Error('Firebase is not configured.');const safeActor=actorWithAuth(actor);if(!safeActor.uid||!normalizedAccessRoles(safeActor).includes('admin'))throw new Error('Only an authenticated administrator can save analytics rules.');await setDoc(doc(db,'settings','analyticsRules'),{rules,updatedAt:serverTimestamp(),updatedBy:safeActor.uid,updatedByName:safeActor.name||safeActor.email||''},{merge:true})}
