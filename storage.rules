@@ -3,6 +3,10 @@ service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
     function isRole(name) { return signedIn() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == name; }
+    match /portal-maintenance/{fileName} {
+      allow read: if true;
+      allow write: if isRole('admin') && request.resource.size < 10 * 1024 * 1024 && request.resource.contentType.matches('image/.*');
+    }
     match /pdi/{ticketId}/{fileName} {
       allow read: if signedIn();
       allow write: if isRole('pdi') || isRole('admin');
