@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore'
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage'
 import { db, storage } from '../firebase.js'
@@ -13,12 +14,12 @@ export function PortalNoticeBar() {
   return <div className="portal-notice-bar" role="region" aria-label="Portal announcements"><span className="portal-notice-label">PORTAL UPDATES</span><div className="portal-notice-track"><div className="portal-notice-marquee">{[...items,...items].map((n,i)=><span key={n.id+'-'+i} className={'portal-notice-item '+(n.type||'info')}><b>{(n.type||'update').toUpperCase()}</b>{n.message}</span>)}</div></div></div>
 }
 export function MaintenanceGate({children}) {
-  const {user,profile,loading}=useAuth()
+  const {user,profile,loading}=useAuth(); const location=useLocation()
   const [settings,setSettings]=useState(null)
   useEffect(()=>onSnapshot(settingsRef(),s=>setSettings(s.exists()?s.data():{enabled:false}),()=>setSettings({enabled:false})),[])
   if(loading||settings===null)return <div className="loading-screen">Loading CRM SAIDHARA…</div>
   const admin=profile?.role==='admin'||profile?.accessRoles?.includes('admin')
-  if(settings.enabled&&!admin){
+  if(settings.enabled&&!admin&&location.pathname!=='/login'&&location.pathname!=='/forgot-password'){
     const until=settings.expectedAt?new Date(settings.expectedAt).toLocaleString():'To be announced'
     return <main className="maintenance-screen" style={settings.imageUrl?{backgroundImage:'linear-gradient(120deg,rgba(5,12,28,.92),rgba(12,31,55,.86)),url('+settings.imageUrl+')'}:{}}>
       <div className="maintenance-card"><div className="maintenance-symbol">⚙</div><span className="maintenance-kicker">CRM SAIDHARA · SYSTEM NOTICE</span><h1>We’ll be back shortly.</h1><p className="maintenance-lead">The portal is temporarily unavailable while we carry out scheduled maintenance.</p>{settings.message&&<div className="maintenance-details"><b>What’s happening</b><p>{settings.message}</p></div>}<div className="maintenance-return"><span>EXPECTED TO BE LIVE AGAIN</span><strong>{until}</strong></div><div className="maintenance-foot">Thank you for your patience. Please check back after the scheduled time.</div></div>
