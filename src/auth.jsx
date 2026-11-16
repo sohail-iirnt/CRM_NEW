@@ -6,7 +6,7 @@ import { ROLES } from './config.js'
 
 const AuthContext = createContext(null)
 const normalizeRole = value => String(value || '').trim().toLowerCase()
-const normalizeRoles = data => Array.from(new Set([...(Array.isArray(data?.accessRoles) ? data.accessRoles : []), data?.role].map(normalizeRole).filter(Boolean)))
+const normalizeRoles = data => { const assigned = Array.isArray(data?.accessRoles) ? data.accessRoles.map(normalizeRole).filter(Boolean) : []; const primary = normalizeRole(data?.role); const department = normalizeRole(data?.department); return Array.from(new Set([...assigned, ...(primary ? [primary] : assigned.length ? [] : department ? [department] : [])])); }
 
 export function AuthProvider({ children }) {
   const [user,setUser]=useState(null),[profile,setProfile]=useState(null),[loading,setLoading]=useState(firebaseConfigured),[error,setError]=useState('')
@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
         if(!snap.exists()){
           setProfile(null);setLoading(false);setError('Your Firebase account has no CRM profile. Ask an Admin to create or restore your user profile.');return
         }
-        const data=snap.data(),roles=normalizeRoles(data),normalized={uid:nextUser.uid,email:data.email||nextUser.email||'',name:data.name||nextUser.displayName||nextUser.email||'User',role:roles.includes(ROLES.ADMIN)?ROLES.ADMIN:(normalizeRole(data.role)||roles[0]),accessRoles:roles,department:normalizeRole(data.department)||normalizeRole(data.role)||roles[0],active:data.active!==false,blocked:data.blocked===true}
+        const data=snap.data(),roles=normalizeRoles(data),normalized={uid:nextUser.uid,email:data.email||nextUser.email||'',name:data.name||nextUser.displayName||nextUser.email||'User',role:roles.includes(ROLES.ADMIN)?ROLES.ADMIN:(normalizeRole(data.role)||roles[0]||normalizeRole(data.department)),accessRoles:roles,department:normalizeRole(data.department)||normalizeRole(data.role)||roles[0],active:data.active!==false,blocked:data.blocked===true}
         if(!normalized.active||normalized.blocked){setProfile(null);setError(normalized.blocked?'Your account has been blocked by an administrator.':'Your account has been deactivated by an administrator.');setLoading(false);try{await signOut(auth)}catch{};return}
         setProfile(normalized);setLoading(false)
         if(!heartbeatWritten){

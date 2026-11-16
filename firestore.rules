@@ -12,7 +12,8 @@ service cloud.firestore {
     match /users/{uid} { allow read: if signedIn() && (request.auth.uid == uid || admin()); allow create: if admin(); allow update: if admin() || (signedIn() && request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt', 'updatedAt'])); allow delete: if admin(); }
     match /tickets/{ticketId} { allow read, create, update: if ticketUser(); allow delete: if admin(); }
     match /workflowRules/{ruleId} { allow read: if signedIn(); allow write: if admin(); }
-    match /settings/{settingId} { allow read: if signedIn(); allow write: if admin(); }
+    match /settings/{settingId} { allow read: if settingId == 'portalMaintenance' || signedIn(); allow write: if admin(); }
+    match /portalNotices/{noticeId} { allow read: if true; allow create, update, delete: if admin(); }
     match /inspectors/{inspectorId} { allow read: if hasRole('pdi') || admin(); allow create, update, delete: if admin(); }
     match /etaRules/{ruleId} { allow read: if activeUser(); allow create, update, delete: if admin(); }
     match /systemLogs/{logId} { allow read, create: if activeUser(); allow update, delete: if false; }
