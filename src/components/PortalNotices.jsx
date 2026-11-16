@@ -19,11 +19,11 @@ export function MaintenanceGate({children}) {
   useEffect(()=>onSnapshot(settingsRef(),s=>setSettings(s.exists()?s.data():{enabled:false}),()=>setSettings({enabled:false})),[])
   if(loading||settings===null)return <div className="loading-screen">Loading CRM SAIDHARA…</div>
   const admin=profile?.role==='admin'||profile?.accessRoles?.includes('admin')
-  if(settings.enabled&&!(admin&&location.pathname.startsWith('/admin'))&&location.pathname!=='/login'&&location.pathname!=='/forgot-password'){
+  if(settings.enabled&&!(admin&&location.pathname.startsWith('/admin')&&new URLSearchParams(location.search).get('maintenanceAccess')==='1')&&location.pathname!=='/login'&&location.pathname!=='/forgot-password'){
     const until=settings.expectedAt?new Date(settings.expectedAt).toLocaleString():'To be announced'
     return <main className="maintenance-screen" style={settings.imageUrl?{backgroundImage:'linear-gradient(120deg,rgba(5,12,28,.92),rgba(12,31,55,.86)),url('+settings.imageUrl+')'}:{}}>
       <div className="maintenance-card"><div className="maintenance-symbol">⚙</div><span className="maintenance-kicker">CRM SAIDHARA · SYSTEM NOTICE</span><h1>We’ll be back shortly.</h1><p className="maintenance-lead">The portal is temporarily unavailable while we carry out scheduled maintenance.</p>{settings.message&&<div className="maintenance-details"><b>What’s happening</b><p>{settings.message}</p></div>}<div className="maintenance-return"><span>EXPECTED TO BE LIVE AGAIN</span><strong>{until}</strong></div><div className="maintenance-foot">Thank you for your patience. Please check back after the scheduled time.</div></div>
-      <button className="maintenance-admin-entry" type="button" onClick={async()=>{if(admin){navigate('/admin')}else{if(user)await logout();navigate('/login')}}} aria-label={admin?'Open administrator controls':'Administrator sign in'} title={admin?'Open administrator controls':'Administrator sign in'}>·</button>
+      <div className="maintenance-access-row"><span>Administrator?</span><button className="maintenance-admin-entry" type="button" onClick={async()=>{if(admin){navigate('/admin?maintenanceAccess=1')}else{if(user)await logout();navigate('/login')}}} aria-label={admin?'Open administrator controls':'Administrator sign in'} title={admin?'Open administrator controls':'Administrator sign in'}>{admin?'Open admin controls':'Admin sign in'}</button></div>
     </main>
   }
   return children
